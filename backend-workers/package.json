@@ -1,0 +1,21 @@
+{
+  "name": "skinsense-ai-backend",
+  "version": "1.0.0",
+  "description": "SkinSense AI Backend Workers",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "typescript": "^5.0.0"
+  }
+}
+
