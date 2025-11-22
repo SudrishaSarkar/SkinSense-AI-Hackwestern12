@@ -1,0 +1,41 @@
+name = "skinsense-ai"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables (secrets should be set via: wrangler secret put KEY_NAME)
+[vars]
+# These will be set via wrangler secret put or in Cloudflare dashboard
+GEMINI_API_KEY = ""
+WALMART_API_KEY = ""
+AMAZON_RAPIDAPI_KEY = ""
+ELEVENLABS_API_KEY = ""
+
+# KV Namespace for caching
+[[kv_namespaces]]
+binding = "CACHE"
+id = "6dea9870c173465485098beccddf8708"
+preview_id = "ac27165597af4a5384798f29df0b8f3d"
+
+# Uncomment and configure if you need additional KV namespaces
+# [[kv_namespaces]]
+# binding = "PRODUCTS"
+# id = ""
+# preview_id = ""
+
+# Build configuration
+[build]
+command = ""
+
+# Development server configuration
+[dev]
+port = 8787
+ip = "127.0.0.1"
+local_protocol = "http"
+
+# Uncomment to add more environments (staging, production, etc.)
+# [env.production]
+# name = "skinsense-ai-prod"
+# 
+# [env.staging]
+# name = "skinsense-ai-staging"
