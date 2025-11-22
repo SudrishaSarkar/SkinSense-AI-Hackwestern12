@@ -1,25 +1,48 @@
-export interface Env {
-  CACHE: KVNamespace;
-  GEMINI_API_KEY: string;
-  WALMART_API_KEY: string;
-  AMAZON_RAPIDAPI_KEY: string;
-  ELEVENLABS_API_KEY: string;
-}
+// src/index.ts
+import type { Env } from "./types";
+import { handleAnalyzeSkin } from "./routes/analyzeSkin";
+import { handleCycleInsights } from "./routes/cycleInsights";
+import { handleRecommendProducts } from "./routes/recommendProducts";
+import { handlePriceCompare } from "./routes/priceCompare";
+import { handleInvestment } from "./routes/investment";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     const url = new URL(request.url);
-    const pathname = url.pathname;
+    const { pathname } = url;
 
-    // Test KV cache route
-    if (pathname === "/test-cache") {
-      await env.CACHE.put("hello", "world");
-      const result = await env.CACHE.get("hello");
-      return new Response(`CACHE works! Value: ${result}`);
+    try {
+      if (pathname === "/api/analyze-skin" && request.method === "POST") {
+        return handleAnalyzeSkin(request, env);
+      }
+
+      if (pathname === "/api/cycle-insights" && request.method === "POST") {
+        return handleCycleInsights(request, env);
+      }
+
+      if (pathname === "/api/recommend-products" && request.method === "POST") {
+        return handleRecommendProducts(request, env);
+      }
+
+      if (pathname === "/api/price-compare" && request.method === "GET") {
+        return handlePriceCompare(request, env);
+      }
+
+      if (pathname === "/api/investment" && request.method === "POST") {
+        return handleInvestment(request, env);
+      }
+
+      return new Response("Not found", { status: 404 });
+    } catch (err: any) {
+      console.error(err);
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-
-    // Default route
-    return new Response("Worker is running!");
-  }
+  },
 };
-
