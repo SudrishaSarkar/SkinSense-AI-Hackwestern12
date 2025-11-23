@@ -2649,7 +2649,9 @@ const AuthScreen = ({ onAuthSuccess }) => {
         {/* Left intro side */}
         <div className="auth-intro">
           <div className="auth-logo-pill">SkinSense AI</div>
-          <h1 className="auth-title">Personalized skincare, powered by vision AI.</h1>
+          <h1 className="auth-title">
+            Personalized skincare, powered by vision AI.
+          </h1>
           <p className="auth-subtitle">
             Log in or create a demo account to try the full flow: from selfie to
             skin insights, routine, products, and where to buy.
@@ -2673,7 +2675,9 @@ const AuthScreen = ({ onAuthSuccess }) => {
             </button>
             <button
               type="button"
-              className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`}
+              className={`auth-tab ${
+                mode === "signup" ? "auth-tab-active" : ""
+              }`}
               onClick={() => setMode("signup")}
             >
               Sign up
@@ -2741,8 +2745,8 @@ const AuthScreen = ({ onAuthSuccess }) => {
           </form>
 
           <p className="auth-footnote">
-            Demo-only: this doesn’t create a real account yet. We’ll wire it to the
-            backend later.
+            Demo-only: this doesn’t create a real account yet. We’ll wire it to
+            the backend later.
           </p>
         </div>
       </div>
@@ -2754,6 +2758,37 @@ const AuthScreen = ({ onAuthSuccess }) => {
    MAIN APP (AFTER LOGIN)
    ======================= */
 
+const LIKERT_OPTIONS = [
+  "Not at all",
+  "Unlikely",
+  "Somewhat",
+  "Likely",
+  "Definitely",
+];
+
+const LikertQuestion = ({ label, value, onChange }) => {
+  return (
+    <div className="likert-question">
+      <p className="likert-label">{label}</p>
+      <div className="likert-scale">
+        {LIKERT_OPTIONS.map((opt, index) => (
+          <button
+            key={opt}
+            type="button"
+            className={
+              "likert-option" +
+              (value === index ? " likert-option-selected" : "")
+            }
+            onClick={() => onChange(index)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const MainApp = () => {
   const [activeSection, setActiveSection] = useState("landing");
   const [hasGeneratedPlan, setHasGeneratedPlan] = useState(false);
@@ -2764,8 +2799,9 @@ const MainApp = () => {
   const [userFilters, setUserFilters] = useState({
     gender: "",
     ageRange: "",
-    skinType: "",
-    healthIssue: "",
+    oily: null, // 0–4 Likert
+    dry: null, // 0–4 Likert
+    intensity: null, // 0–4 Likert
   });
 
   const [hasUploadedImage, setHasUploadedImage] = useState(false);
@@ -2805,12 +2841,32 @@ const MainApp = () => {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleFilterChange = (field) => (e) => {
+  // dropdowns (gender, age)
+  const handleSelectChange = (field) => (e) => {
     const value = e.target.value;
     setUserFilters((prev) => {
       const next = { ...prev, [field]: value };
       const filled =
-        next.gender && next.ageRange && next.skinType && next.healthIssue;
+        next.gender &&
+        next.ageRange &&
+        next.oily !== null &&
+        next.dry !== null &&
+        next.intensity !== null;
+      setHasUserInfo(Boolean(filled));
+      return next;
+    });
+  };
+
+  // likert scale (oily / dry / intensity)
+  const handleLikertChange = (field, value) => {
+    setUserFilters((prev) => {
+      const next = { ...prev, [field]: value };
+      const filled =
+        next.gender &&
+        next.ageRange &&
+        next.oily !== null &&
+        next.dry !== null &&
+        next.intensity !== null;
       setHasUserInfo(Boolean(filled));
       return next;
     });
@@ -2893,7 +2949,7 @@ const MainApp = () => {
 
             <ul className="landing-points">
               <li>Upload a selfie + quick skin profile</li>
-              <li>See your AI skin map & plain-language summary</li>
+              <li>See your AI skin map &amp; plain-language summary</li>
               <li>Get AM/PM routines, products, and nearby stores</li>
             </ul>
 
@@ -2926,7 +2982,7 @@ const MainApp = () => {
           <div className="section-inner hero-layout">
             <div className="section-text hero-main">
               <p className="floating-label floating-label-large">
-                Capture & Profile
+                Capture &amp; Profile
               </p>
               <h1 className="hero-title">
                 SkinSense <span className="hero-highlight">AI</span>
@@ -2971,13 +3027,15 @@ const MainApp = () => {
                       <select
                         id="gender"
                         value={userFilters.gender}
-                        onChange={handleFilterChange("gender")}
+                        onChange={handleSelectChange("gender")}
                       >
                         <option value="">Select gender</option>
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="nonbinary">Non-binary</option>
-                        <option value="prefer-not">Prefer not to say</option>
+                        <option value="prefer-not">
+                          Prefer not to say
+                        </option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -2987,7 +3045,7 @@ const MainApp = () => {
                       <select
                         id="ageRange"
                         value={userFilters.ageRange}
-                        onChange={handleFilterChange("ageRange")}
+                        onChange={handleSelectChange("ageRange")}
                       >
                         <option value="">Select age range</option>
                         <option value="under18">Under 18</option>
@@ -2998,38 +3056,25 @@ const MainApp = () => {
                       </select>
                     </div>
 
-                    <div className="form-field">
-                      <label htmlFor="skinType">Skin Type</label>
-                      <select
-                        id="skinType"
-                        value={userFilters.skinType}
-                        onChange={handleFilterChange("skinType")}
-                      >
-                        <option value="">Select skin type</option>
-                        <option value="normal">Normal</option>
-                        <option value="oily">Oily</option>
-                        <option value="dry">Dry</option>
-                        <option value="combo">Combination</option>
-                        <option value="sensitive">Sensitive</option>
-                        <option value="not-sure">Not sure</option>
-                      </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="healthIssue">Health Problems</label>
-                      <select
-                        id="healthIssue"
-                        value={userFilters.healthIssue}
-                        onChange={handleFilterChange("healthIssue")}
-                      >
-                        <option value="">Select an option</option>
-                        <option value="none">None</option>
-                        <option value="acne">Acne</option>
-                        <option value="eczema">Eczema</option>
-                        <option value="rosacea">Rosacea</option>
-                        <option value="pcos">PCOS / hormonal</option>
-                        <option value="other">Other</option>
-                      </select>
+                    {/* Likert scales span full width */}
+                    <div className="likert-group">
+                      <LikertQuestion
+                        label="Do you consider your skin to be oily?"
+                        value={userFilters.oily}
+                        onChange={(val) => handleLikertChange("oily", val)}
+                      />
+                      <LikertQuestion
+                        label="Do you consider your skin to be dry?"
+                        value={userFilters.dry}
+                        onChange={(val) => handleLikertChange("dry", val)}
+                      />
+                      <LikertQuestion
+                        label="Would you describe the intensity of your skincare as intensive?"
+                        value={userFilters.intensity}
+                        onChange={(val) =>
+                          handleLikertChange("intensity", val)
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -3038,7 +3083,8 @@ const MainApp = () => {
                 <button
                   type="button"
                   className={
-                    "generate-btn" + (canStartFlow ? " generate-btn-active" : "")
+                    "generate-btn" +
+                    (canStartFlow ? " generate-btn-active" : "")
                   }
                   disabled={!canStartFlow}
                   onClick={handleGeneratePlan}
@@ -3119,9 +3165,9 @@ const MainApp = () => {
 
                       <h3 className="viz-title">Skin Summary</h3>
                       <p className="viz-paragraph">
-                        “Your skin appears moderately oily with mild inflammation
-                        around the cheeks. Stress and low sleep might be
-                        contributing to congestion.”
+                        “Your skin appears moderately oily with mild
+                        inflammation around the cheeks. Stress and low sleep
+                        might be contributing to congestion.”
                       </p>
                       <div className="viz-tags-row">
                         <span>⚡ Stress</span>
@@ -3179,7 +3225,9 @@ const MainApp = () => {
                               <span>Amazon.ca</span>
                               <span className="product-price">$15.49</span>
                             </div>
-                            <span className="product-tag">Best price: Walmart</span>
+                            <span className="product-tag">
+                              Best price: Walmart
+                            </span>
                           </div>
                         </div>
 
@@ -3192,8 +3240,8 @@ const MainApp = () => {
                               La Roche-Posay Toleriane Sensitive Cream
                             </p>
                             <p className="product-detail">
-                              For redness & barrier repair · minimalist formula,
-                              fragrance-free.
+                              For redness &amp; barrier repair · minimalist
+                              formula, fragrance-free.
                             </p>
                             <div className="product-store-row">
                               <span>Shoppers Drug Mart</span>
@@ -3211,8 +3259,8 @@ const MainApp = () => {
                       </div>
 
                       <p className="search-note">
-                        *In the full version, these cards would be auto-filled from
-                        live web scraping / retail APIs.
+                        *In the full version, these cards would be auto-filled
+                        from live web scraping / retail APIs.
                       </p>
                     </div>
                   )}
@@ -3223,8 +3271,8 @@ const MainApp = () => {
                       <div className="map-placeholder">
                         <div className="map-pin">📍</div>
                         <p className="map-caption">
-                          Show closest stores with your cleanser, moisturizer, and
-                          sunscreen in stock.
+                          Show closest stores with your cleanser, moisturizer,
+                          and sunscreen in stock.
                         </p>
                       </div>
                     </div>

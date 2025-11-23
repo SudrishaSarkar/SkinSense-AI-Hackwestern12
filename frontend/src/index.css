@@ -549,6 +549,8 @@ span {
   box-shadow: 0 0 0 2px rgba(92, 114, 74, 0.25);
 }
 
+.form-field select:focus
+
 /* PRODUCT SEARCH GRID */
 
 .product-results-card {
@@ -1079,4 +1081,104 @@ span {
   height: 1px;
   background: rgba(210, 195, 158, 0.8);
   margin: 14px 0;
+}
+
+
+
+/* ============================
+   LIKERT CAPSULE QUESTIONS
+   ============================ */
+
+.likert-group {
+  grid-column: 1 / -1;            /* span full width of the form */
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.likert-question {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.likert-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Capsule track */
+.likert-scale {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 2px;
+  background: linear-gradient(
+    90deg,
+    #e9dec2 0%,
+    #d5e1c7 40%,
+    #a3b68a 70%,
+    #5c724a 100%
+  );
+  box-shadow: 0 10px 26px rgba(26, 32, 20, 0.15);
+}
+
+/* Individual options */
+.likert-option {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #fffdf5;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 9px 6px;
+  cursor: pointer;
+  position: relative;
+  transition:
+    background 0.18s ease-out,
+    color 0.18s ease-out,
+    box-shadow 0.18s ease-out,
+    transform 0.12s ease-out;
+  white-space: nowrap;
+}
+
+/* subtle separators between options */
+.likert-option:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 20%;
+  right: 0;
+  width: 1px;
+  height: 60%;
+  background: rgba(255, 253, 245, 0.35);
+}
+
+/* hover state (only if not selected) */
+.likert-option:hover:not(.likert-option-selected) {
+  background: rgba(245, 245, 213, 0.28);
+}
+
+/* Selected pill */
+.likert-option-selected {
+  background: #fffdf5;
+  color: var(--deep-green);
+  border-radius: 999px;
+  box-shadow: 0 10px 26px rgba(26, 32, 20, 0.28);
+  transform: translateY(-1px);
+}
+
+/* Mobile tweaks */
+@media (max-width: 600px) {
+  .likert-label {
+    font-size: 13px;
+  }
+
+  .likert-option {
+    font-size: 11px;
+    padding: 8px 4px;
+  }
 }
