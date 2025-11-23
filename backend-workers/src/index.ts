@@ -1,11 +1,12 @@
-// src/index.ts
-import type { Env } from "./types";
-import { handleAnalyzeSkin } from "./routes/analyzeSkin";
-import { handleCycleInsights } from "./routes/cycleInsights";
-import { handleRecommendProducts } from "./routes/recommendProducts";
-import { handlePriceCompare } from "./routes/priceCompare";
-import { handleInvestment } from "./routes/investment";
-import { handleRecommendationBundle } from "./routes/recommendationBundle";
+
+
+export interface Env {
+  CACHE: KVNamespace;
+  GEMINI_API_KEY: string;
+  WALMART_API_KEY: string;
+  AMAZON_RAPIDAPI_KEY: string;
+  ELEVENLABS_API_KEY: string;
+}
 
 export default {
   async fetch(
@@ -62,43 +63,5 @@ export default {
         return handleRecommendProducts(request, env);
       }
 
-      if (pathname === "/api/price-compare" && request.method === "GET") {
-        return handlePriceCompare(request, env);
-      }
 
-      if (pathname === "/api/investment" && request.method === "POST") {
-        return handleInvestment(request, env);
-      }
 
-      // ✅ New all-in-one endpoint
-      if (
-        pathname === "/api/recommendation-bundle" &&
-        request.method === "POST"
-      ) {
-        return handleRecommendationBundle(request, env);
-      }
-
-      return new Response(
-        JSON.stringify({
-          error: "Not found",
-          path: pathname,
-          method: request.method,
-          hint: "Check / for available endpoints",
-        }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    } catch (err: any) {
-      console.error(err);
-      return new Response(
-        JSON.stringify({ error: err.message ?? "Internal error" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-  },
-};

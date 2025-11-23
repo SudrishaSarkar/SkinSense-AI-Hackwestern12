@@ -123,11 +123,10 @@ export interface CyclePattern {
  * ----------------------------------------------------------- */
 
 export interface StorePrice {
-  store: string;
-  price: number | null;
+  store: "Walmart" | "Shoppers" | "AmazonCA" | "SephoraCA";
+  price: number | null; // null if failed to fetch
   url: string;
-  image?: string | null;
-  last_checked: number;
+  last_checked: number; // timestamp (ms)
 }
 
 export interface PriceComparisonResult {

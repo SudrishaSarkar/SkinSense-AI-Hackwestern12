@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "SkinSense AI Project",
   "private": true,
+  "scripts": {
+    "dev": "cd backend-workers && npm run dev",
+    "dev:backend": "cd backend-workers && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
   "devDependencies": {
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
