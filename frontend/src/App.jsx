@@ -374,10 +374,11 @@ const MainApp = () => {
   const handleRetake = () => {
     setImageData(null);
     setImageConfirmed(false);
+    // If the last action was taking a webcam photo, re-open the webcam.
+    // Otherwise, trigger the file upload dialog.
     if (lastCaptureMethod === 'webcam') {
-      setIsWebcamActive(true); // Re-activate webcam for retake
+      setIsWebcamActive(true);
     } else {
-      // Default to upload or if method is null
       handleUploadClick();
     }
   };
@@ -595,7 +596,12 @@ const MainApp = () => {
                       />
                     ) : imageData ? (
                       <div className="image-preview-box">
-                        <img src={imageData} alt="Selected skin" className="preview-image" />
+                        {/* The image tag now has inline styles for dynamic sizing */}
+                        <img 
+                          src={imageData} 
+                          alt="Selected skin" 
+                          className="preview-image" 
+                          style={{ maxWidth: '100%', maxHeight: '300px', height: 'auto', width: 'auto' }} />
                         {!imageConfirmed && (
                           <div className="preview-actions">
                             <button type="button" className="secondary-btn" onClick={handleRetake}>
