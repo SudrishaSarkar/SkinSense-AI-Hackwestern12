@@ -1,104 +1,116 @@
 // src/logic/logicFetcher.ts
 import type { Env, StorePrice } from "../types";
+import { searchAmazonProducts } from "../lib/fetchers/amazon";
+import { fetchSephoraPriceRapidApi } from "../lib/fetchers/sephora";
+import { fetchShoppersPrice } from "../lib/fetchers/shoppers";
 
-interface AmazonResponse {
-  data?: {
-    products?: Array<{
-      product_price: string;
-      product_url?: string;
-      product_photo?: string;
-    }>;
-  };
-}
-
-interface SephoraResponse {
-  data?: {
-    products?: Array<{
-      currentSku?: {
-        listPrice?: string;
-      };
-      price?: string;
-      targetUrl?: string;
-      heroImage?: string;
-    }>;
-  };
-}
-
-export async function fetchAllPrices(productName: string, env: Env) {
+/**
+ * Fetch prices across all stores (Amazon, Sephora, Shoppers).
+ * Robu st to API failures; always returns 3 entries.
+ */
+export async function fetchAllPrices(
+  productName: string,
+  env: Env
+): Promise<StorePrice[]> {
   const results: StorePrice[] = [];
 
-  // ⭐ AMAZON
+  // AMAZON
   try {
-    const amazon = await fetch(
-      `https://real-time-amazon-data.p.rapidapi.com/search?query=${encodeURIComponent(
-        productName
-      )}&country=CA&sort_by=RELEVANCE&page=1&language=en_CA`,
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key": env.RAPIDAPI_KEY,
-          "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com",
-        },
-      }
+    if (!env.AMAZON_RAPIDAPI_KEY) {
+      throw new Error("Missing AMAZON_RAPIDAPI_KEY");
+    }
+    const amazonProducts = await searchAmazonProducts(
+      productName,
+      env.AMAZON_RAPIDAPI_KEY
     );
+    if (amazonProducts.length > 0) {
+      const first = amazonProducts[0];
+      let price: number | null = null;
+      if (first.product_price) {
+        // "$22.39" → 22.39
+        const normalized = first.product_price.replace(/[^0-9.,]/g, "");
+        price = parseFloat(normalized.replace(",", ""));
+        if (Number.isNaN(price)) price = null;
+      }
 
-    const data = (await amazon.json()) as AmazonResponse;
-    const first = data?.data?.products?.[0];
-
+      results.push({
+        store: "AmazonCA",
+        price,
+        url: first.product_url,
+        image: first.product_photo ?? null,
+        last_checked: Date.now(),
+      });
+    } else {
+      results.push({
+        store: "AmazonCA",
+        price: null,
+        url: `https://www.amazon.ca/s?k=${encodeURIComponent(productName)}`,
+        image: null,
+        last_checked: Date.now(),
+      });
+    }
+  } catch (err) {
+    console.error("Amazon fetch failed:", err);
     results.push({
       store: "AmazonCA",
-      price: first
-        ? parseFloat(first.product_price.replace(/[^0-9.]/g, ""))
-        : null,
-      url: first?.product_url || "",
-      image: first?.product_photo || null,
+      price: null,
+      url: `https://www.amazon.ca/s?k=${encodeURIComponent(productName)}`,
+      image: null,
       last_checked: Date.now(),
     });
-  } catch (e) {
-    console.error("Amazon fetch error", e);
   }
 
-  // ⭐ SEPHORA
+  // SEPHORA (RapidAPI + fallback)
   try {
-    const sephora = await fetch(
-      `https://real-time-sephora-api.p.rapidapi.com/search-by-category?categoryId=skincare&sortBy=BEST_SELLING&pageSize=20&currentPage=1&query=${encodeURIComponent(
-        productName
-      )}`,
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key": env.RAPIDAPI_KEY,
-          "x-rapidapi-host": "real-time-sephora-api.p.rapidapi.com",
-        },
-      }
+    if (!env.SEPHORA_RAPIDAPI_KEY) {
+      throw new Error("Missing SEPHORA_RAPIDAPI_KEY");
+    }
+    const sephoraPrice = await fetchSephoraPriceRapidApi(
+      productName,
+      env.SEPHORA_RAPIDAPI_KEY
     );
-
-    const data = (await sephora.json()) as SephoraResponse;
-    const first = data?.data?.products?.[0];
-
+    if (sephoraPrice) {
+      results.push(sephoraPrice);
+    } else {
+      results.push({
+        store: "SephoraCA",
+        price: null,
+        url: `https://www.sephora.com/ca/en/search?keyword=${encodeURIComponent(
+          productName
+        )}`,
+        image: null,
+        last_checked: Date.now(),
+      });
+    }
+  } catch (err) {
+    console.error("Sephora fetch failed:", err);
     results.push({
       store: "SephoraCA",
-      price: first
-        ? parseFloat(first.currentSku?.listPrice || first.price || "0")
-        : null,
-      url: first?.targetUrl || "",
-      image: first?.heroImage || null,
+      price: null,
+      url: `https://www.sephora.com/ca/en/search?keyword=${encodeURIComponent(
+        productName
+      )}`,
+      image: null,
       last_checked: Date.now(),
     });
-  } catch (e) {
-    console.error("Sephora fetch failed", e);
   }
 
-  // ⭐ SHOPPERS (placeholder)
-  results.push({
-    store: "Shoppers",
-    price: null,
-    url: `https://www.shoppersdrugmart.ca/en/search?query=${encodeURIComponent(
-      productName
-    )}`,
-    image: null,
-    last_checked: Date.now(),
-  });
+  // SHOPPERS (search URL only)
+  try {
+    const shoppers = await fetchShoppersPrice(productName);
+    results.push(shoppers);
+  } catch (err) {
+    console.error("Shoppers fetch failed:", err);
+    results.push({
+      store: "Shoppers",
+      price: null,
+      url: `https://www.shoppersdrugmart.ca/en/search?query=${encodeURIComponent(
+        productName
+      )}`,
+      image: null,
+      last_checked: Date.now(),
+    });
+  }
 
   return results;
 }

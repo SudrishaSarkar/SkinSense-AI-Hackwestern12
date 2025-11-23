@@ -34,7 +34,7 @@ export async function handleFetchSephora(request: Request, env: Env) {
     const response = await fetch(`${url}?${params.toString()}`, {
       method: "GET",
       headers: {
-        "x-rapidapi-key": env.RAPIDAPI_KEY,
+        "x-rapidapi-key": env.SEPHORA_RAPIDAPI_KEY || env.RAPIDAPI_KEY,
         "x-rapidapi-host": "real-time-sephora-api.p.rapidapi.com",
       },
     });

@@ -1,209 +1,133 @@
 // src/ai/routineGenerator.ts
-import type { SkinProfile, Routine, RoutineStep, Env } from "../types";
+import type { Env, SkinProfile, Routine, RoutineStep } from "../types";
 import { callGemini } from "./geminiClient";
-import { ROUTINE_PROMPT } from "./prompts";
 
-/** ----------------------------------------------------------
- * 1. RULE-BASED LOGIC (core)
- * ---------------------------------------------------------- */
+function buildRuleBasedRoutineInternal(profile: SkinProfile): Routine {
+  const { skin_analysis } = profile;
+  const steps: RoutineStep[] = [];
 
-/**
- * Builds a deterministic AM/PM routine based on the SkinProfile
- * using rule-based logic only.
- * This output can then optionally be enhanced by Gemini.
- */
-export function buildRuleBasedRoutine(profile: SkinProfile): Routine {
-  const { skin_analysis: s, cycle_lifestyle: c } = profile;
-
-  const am: RoutineStep[] = [];
-  const pm: RoutineStep[] = [];
-
-  /** --------------------------
-   * AM ROUTINE LOGIC
-   * -------------------------- */
-
-  // 1. Cleanser
-  if (s.oiliness === "moderate" || s.oiliness === "severe") {
-    am.push({
-      step_name: "Cleanser",
-      instruction: "Use a gentle foaming cleanser to remove excess oil.",
-    });
-  } else if (s.dryness === "moderate" || s.dryness === "severe") {
-    am.push({
-      step_name: "Cleanser",
-      instruction: "Use a hydrating cream cleanser to support barrier health.",
-    });
-  } else {
-    am.push({
-      step_name: "Cleanser",
-      instruction: "Use a gentle, non-stripping cleanser.",
-    });
-  }
-
-  // 2. Hydration / Serum
-  if (s.dryness === "moderate" || s.dryness === "severe") {
-    am.push({
-      step_name: "Hydrating Serum",
-      instruction: "Apply a hyaluronic-acid based serum to boost hydration.",
-    });
-  }
-
-  if (s.redness === "moderate" || s.redness === "severe") {
-    am.push({
-      step_name: "Soothing Serum",
-      instruction:
-        "Use a niacinamide or centella-based serum to reduce visible redness.",
-    });
-  }
-
-  // 3. Moisturizer
-  if (s.oiliness === "severe") {
-    am.push({
-      step_name: "Moisturizer",
-      instruction: "Use a lightweight, oil-free gel moisturizer.",
-    });
-  } else if (s.dryness === "moderate" || s.dryness === "severe") {
-    am.push({
-      step_name: "Moisturizer",
-      instruction: "Use a barrier-repair moisturizer with ceramides.",
-    });
-  } else {
-    am.push({
-      step_name: "Moisturizer",
-      instruction: "Use a balanced moisturizer suitable for daily use.",
-    });
-  }
-
-  // 4. Sunscreen
-  am.push({
-    step_name: "Sunscreen",
-    instruction: "Apply a broad-spectrum SPF 30+ sunscreen.",
+  // AM
+  steps.push({
+    step: "Gentle Cleanser",
+    time: "AM",
+    description:
+      "Use a gentle, non-stripping cleanser to wash your face for 30–60 seconds.",
   });
 
-  /** --------------------------
-   * PM ROUTINE LOGIC
-   * -------------------------- */
+  if (skin_analysis.acne !== "none" || skin_analysis.oiliness !== "none") {
+    steps.push({
+      step: "Active Treatment (e.g. BHA or Niacinamide)",
+      time: "AM",
+      description:
+        "Apply a thin layer of a gentle acne treatment or oil-control serum, avoiding over-use.",
+    });
+  }
 
-  // 1. Cleanse
-  pm.push({
-    step_name: "Cleanser",
-    instruction: "Use a gentle cleanser to remove sunscreen and buildup.",
+  steps.push({
+    step: "Moisturizer",
+    time: "AM",
+    description:
+      "Apply a lightweight, non-comedogenic moisturizer to maintain barrier function.",
   });
 
-  // 2. Exfoliation (Cycle-phase aware)
-  if (s.texture_notes.includes("visible congestion") || s.acne === "moderate") {
-    if (c.cycle_phase !== "menstrual") {
-      pm.push({
-        step_name: "Exfoliant (2–3x/week)",
-        instruction:
-          "Use a BHA liquid exfoliant 2–3 times per week to help unclog pores.",
-      });
-    }
-  }
+  steps.push({
+    step: "Sunscreen SPF 30+",
+    time: "AM",
+    description:
+      "Use a broad-spectrum sunscreen every morning as the last step, even on cloudy days.",
+  });
 
-  // 3. Treatment (acne or redness)
-  if (s.acne === "moderate" || s.acne === "severe") {
-    pm.push({
-      step_name: "Spot Treatment",
-      instruction:
-        "Use a gentle, non-drying spot treatment (e.g., salicylic acid or a sulfur-based spot treatment).",
+  // PM
+  steps.push({
+    step: "Double Cleanse (if wearing makeup/SPF)",
+    time: "PM",
+    description:
+      "Use an oil-based cleanser first if you wore makeup or heavy sunscreen, followed by your gentle cleanser.",
+  });
+
+  if (skin_analysis.texture_notes.length > 0) {
+    steps.push({
+      step: "Gentle Exfoliant (1–3x/week)",
+      time: "PM",
+      description:
+        "On non-consecutive nights, use a mild chemical exfoliant to smooth texture. Avoid over-exfoliation.",
     });
   }
 
-  if (s.redness === "severe") {
-    pm.push({
-      step_name: "Soothing Serum",
-      instruction: "Apply a calming serum containing centella or panthenol.",
-    });
-  }
+  steps.push({
+    step: "Barrier Repair Moisturizer",
+    time: "PM",
+    description:
+      "Use a richer moisturizer at night to support skin barrier and recovery.",
+  });
 
-  // 4. Moisturizer
-  if (s.dryness === "severe") {
-    pm.push({
-      step_name: "Moisturizer",
-      instruction:
-        "Apply a rich moisturizer with ceramides or squalane for barrier repair.",
-    });
-  } else {
-    pm.push({
-      step_name: "Moisturizer",
-      instruction: "Use a balanced night moisturizer.",
-    });
-  }
-
-  // 5. Optional Cycle-Based Adjustments
-  if (c.cycle_phase === "luteal") {
-    pm.push({
-      step_name: "Luteal Phase Support",
-      instruction:
-        "During the luteal phase, keep skincare soothing and avoid new actives.",
-    });
-  }
-
-  if (c.stress_level >= 4) {
-    pm.push({
-      step_name: "Stress Recovery Tip",
-      instruction:
-        "High stress can increase oiliness and redness — consider a soothing serum.",
-    });
-  }
-
-  return { am, pm };
+  return {
+    steps,
+    notes:
+      "This routine is non-medical and focuses on barrier support, gentle actives, and daily SPF. Adjust frequency of actives if you experience irritation.",
+  };
 }
 
-/** ----------------------------------------------------------
- * 2. OPTIONAL GEMINI REFINEMENT (UPGRADE ROUTINE)
- * ---------------------------------------------------------- */
+export function buildRuleBasedRoutine(profile: SkinProfile): Routine {
+  return buildRuleBasedRoutineInternal(profile);
+}
 
-/**
- * Enhances the rule-based routine using Gemini.
- * This produces more natural descriptions, improved ordering,
- * and ingredient insights.
- */
-export async function enhanceRoutineWithGemini(
+export async function generateRoutine(
   profile: SkinProfile,
-  routine: Routine,
   env: Env
 ): Promise<Routine> {
+  // Fast fallback mode or no key → rule-based only
+  if (!env.GEMINI_API_KEY || env.ENVIRONMENT === "local") {
+    return buildRuleBasedRoutineInternal(profile);
+  }
+
   const payload = {
     contents: [
       {
         role: "user",
         parts: [
-          { text: ROUTINE_PROMPT },
-          { text: JSON.stringify({ profile, routine }) },
+          {
+            text: `
+You are a skincare routine designer (non-medical).
+
+You will receive a JSON object with:
+- "skin_analysis": ${JSON.stringify(profile.skin_analysis)}
+- "cycle_lifestyle": ${JSON.stringify(profile.cycle_lifestyle)}
+
+Return STRICT JSON with this schema:
+
+{
+  "steps": [
+    {
+      "step": string,            // e.g. "Cleanser"
+      "time": "AM" | "PM" | "AM_PM",
+      "description": string
+    }
+  ],
+  "notes": string                // short explanation and disclaimers
+}
+
+Rules:
+- 4–8 total steps is ideal.
+- Focus on barrier support, simple actives, and SPF.
+- Do not mention prescription drugs or diagnoses.
+- No markdown, no backticks.
+`,
+          },
         ],
       },
     ],
   };
 
-  const result = await callGemini("gemini-1.5-pro-latest", payload, env);
-
-  // If Gemini fails, return rule-based routine instead
-  if (!result || !result.am || !result.pm) {
-    return routine;
-  }
-
-  return result as Routine;
-}
-
-/** ----------------------------------------------------------
- * 3. PRIMARY ENTRYPOINT FOR ROUTE / API
- * ---------------------------------------------------------- */
-
-export async function generateRoutine(
-  profile: SkinProfile,
-  env?: Env
-): Promise<Routine> {
-  const ruleBase = buildRuleBasedRoutine(profile);
-
-  // If no Gemini key or env passed, return rule-based
-  if (!env?.GEMINI_API_KEY) return ruleBase;
-
   try {
-    const enhanced = await enhanceRoutineWithGemini(profile, ruleBase, env);
-    return enhanced;
-  } catch {
-    return ruleBase;
+    const result = await callGemini("gemini-2.0-flash-001", payload, env);
+    if (result?.steps && Array.isArray(result.steps)) {
+      return result as Routine;
+    }
+    // If model didn't follow schema, fall back
+    return buildRuleBasedRoutineInternal(profile);
+  } catch (err) {
+    console.error("Routine Gemini error:", err);
+    return buildRuleBasedRoutineInternal(profile);
   }
 }

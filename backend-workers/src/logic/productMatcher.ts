@@ -1,123 +1,59 @@
 // src/logic/productMatcher.ts
-
-import type { SkinProfile, Product, IngredientInfo } from "../types";
-import {
-  parseIngredients,
-  computeIngredientSafetyScore,
-} from "./ingredientParser";
+import type { Product, IngredientInfo, SkinProfile } from "../types";
 
 /**
- * Scores a product relative to a user's skin profile.
- * Higher score = better match.
- */
-function scoreProduct(
-  product: Product,
-  profile: SkinProfile,
-  ingredientDb: IngredientInfo[]
-): number {
-  const { skin_analysis: s } = profile;
-  let score = 0;
-
-  /* ------------------------------------------------------
-   * 1. Ingredient safety score (0–100)
-   * ------------------------------------------------------ */
-  const parsed = parseIngredients(product.ingredients_full);
-  const safety = computeIngredientSafetyScore(parsed, ingredientDb);
-
-  if (safety > 90) score += 6;
-  if (safety > 75) score += 4;
-  if (safety < 50) score -= 5;
-  if (safety < 30) score -= 8;
-
-  /* ------------------------------------------------------
-   * 2. Skin type compatibility
-   * ------------------------------------------------------ */
-  if (s.oiliness === "moderate" || s.oiliness === "severe") {
-    if (product.suitable_for.includes("oily")) score += 4;
-    if (product.suitable_for.includes("acne-prone")) score += 3;
-  }
-
-  if (s.dryness === "moderate" || s.dryness === "severe") {
-    if (product.suitable_for.includes("dry")) score += 4;
-    if (product.suitable_for.includes("sensitive")) score += 2;
-  }
-
-  if (s.redness === "moderate" || s.redness === "severe") {
-    if (product.suitable_for.includes("sensitive")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 3. Ingredient-based improvements
-   * ------------------------------------------------------ */
-  const inci = product.ingredients_full.toLowerCase();
-
-  // Acne fighting
-  if (s.acne === "moderate" || s.acne === "severe") {
-    if (inci.includes("salicylic")) score += 4;
-    if (inci.includes("bha")) score += 3;
-    if (inci.includes("niacinamide")) score += 2;
-  }
-
-  // Dryness/hydration
-  if (s.dryness === "moderate" || s.dryness === "severe") {
-    if (inci.includes("hyaluronic")) score += 4;
-    if (inci.includes("ceramide")) score += 3;
-    if (inci.includes("glycerin")) score += 2;
-    if (inci.includes("squalane")) score += 2;
-  }
-
-  // Redness / sensitivity
-  if (s.redness === "moderate" || s.redness === "severe") {
-    if (inci.includes("centella")) score += 3;
-    if (inci.includes("panthenol")) score += 2;
-    if (inci.includes("madecassoside")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 4. Texture issues
-   * ------------------------------------------------------ */
-  if (s.texture_notes.includes("visible congestion")) {
-    if (inci.includes("salicylic")) score += 4;
-    if (inci.includes("bha")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 5. Routine Focus Alignment
-   * ------------------------------------------------------ */
-  for (const goal of s.routine_focus) {
-    if (goal === "barrier repair" && inci.includes("ceramide")) score += 3;
-    if (goal === "oil control" && inci.includes("niacinamide")) score += 2;
-    if (goal === "soothing" && inci.includes("centella")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 6. Penalties (fragrance, essential oils, drying alcohol)
-   * ------------------------------------------------------ */
-  if (!product.fragrance_free) score -= 3;
-  if (inci.includes("fragrance")) score -= 4;
-  if (inci.includes("parfum")) score -= 4;
-  if (inci.includes("lavender oil")) score -= 4;
-  if (inci.includes("essential oil")) score -= 3;
-  if (inci.includes("alcohol denat")) score -= 3;
-
-  return score;
-}
-
-/**
- * MAIN MATCHER — returns top N products.
+ * Simple scoring: matches on concerns + skin type + avoids comedogenic ingredients if acne/oily.
  */
 export function matchProductsToSkinProfile(
   profile: SkinProfile,
   products: Product[],
-  ingredientDb: IngredientInfo[],
-  limit: number = 15
+  inciDb: IngredientInfo[],
+  limit: number
 ): Product[] {
-  const scored = products.map((p) => ({
-    product: p,
-    score: scoreProduct(p, profile, ingredientDb),
-  }));
+  const { skin_analysis } = profile;
 
-  scored.sort((a, b) => b.score - a.score);
+  const wantsAcneSupport = skin_analysis.acne !== "none";
+  const wantsRednessSupport = skin_analysis.redness !== "none";
+  const wantsDrynessSupport = skin_analysis.dryness !== "none";
+  const wantsOilControl = skin_analysis.oiliness !== "none";
 
-  return scored.slice(0, limit).map((x) => x.product);
+  function ingredientPenalty(ingredients: string[]): number {
+    if (!wantsAcneSupport && !wantsOilControl) return 0;
+    const lowerNames = ingredients.map((i) => i.toLowerCase());
+    let penalty = 0;
+    for (const ing of inciDb) {
+      if (!ing.name) continue;
+      const nameLower = ing.name.toLowerCase();
+      if (lowerNames.includes(nameLower)) {
+        if ((ing.comedogenic_rating ?? 0) >= 3) penalty += 2;
+        if ((ing.irritancy_rating ?? 0) >= 3) penalty += 1;
+      }
+    }
+    return penalty;
+  }
+
+  const scored = products.map((p) => {
+    let score = 0;
+
+    const concernsLower = p.concerns.map((c) => c.toLowerCase());
+
+    if (wantsAcneSupport && concernsLower.includes("acne")) score += 3;
+    if (wantsRednessSupport && concernsLower.includes("redness")) score += 2;
+    if (wantsDrynessSupport && concernsLower.includes("dryness")) score += 2;
+    if (wantsOilControl && concernsLower.includes("oil control")) score += 2;
+
+    // small bonus for "barrier", "hydration", "sensitive"
+    if (concernsLower.includes("barrier")) score += 1;
+    if (concernsLower.includes("hydration")) score += 1;
+    if (concernsLower.includes("sensitivity")) score += 1;
+
+    score -= ingredientPenalty(p.ingredients);
+
+    return { product: p, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.product);
 }

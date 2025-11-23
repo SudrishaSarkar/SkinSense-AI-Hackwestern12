@@ -1,6 +1,6 @@
 // src/ai/routineGenerator.ts
 import type { SkinProfile, Routine, RoutineStep, Env } from "../types";
-import { callGemini } from "./geminiClient";
+import { callGemini } from "../aiSystemPrompts/geminiClient";
 import { ROUTINE_GENERATION_PROMPT } from "./prompts";
 
 /** ----------------------------------------------------------

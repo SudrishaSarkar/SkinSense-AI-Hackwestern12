@@ -1,83 +1,121 @@
 // src/routes/recommendProducts.ts
-
 import type {
   Env,
   SkinProfile,
-  PriceComparisonResult,
+  SkinAnalysis,
+  CycleLifestyleInput,
   Product,
   IngredientInfo,
 } from "../types";
-
+import { matchProductsToSkinProfile } from "../logic/productMatcher";
+import { corsHeaders } from "../utils/cors";
 import productsData from "../datasets/products.json";
 import inciDbData from "../datasets/inci.json";
 
-import { matchProductsToSkinProfile } from "../logic/productMatcher";
-import {
-  parseIngredients,
-  computeIngredientSafetyScore,
-} from "../logic/ingredientParser";
+// Map old product format to new Product interface
+interface OldProduct {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  key_ingredients: string[];
+  ingredients_full: string;
+  suitable_for: string[];
+  fragrance_free: boolean;
+  comedogenic_rating: number;
+  price_estimate?: number;
+}
 
-const products = productsData as Product[];
-const inciDb = inciDbData as IngredientInfo[];
+function mapOldProductToNew(old: OldProduct): Product {
+  // Parse ingredients_full into array
+  const ingredients = old.ingredients_full
+    ? old.ingredients_full
+        .split(/,|;/)
+        .map((i) => i.trim())
+        .filter((i) => i.length > 0)
+    : old.key_ingredients || [];
 
-/**
- * Groups selected products by skincare routine step.
- */
-function groupProductsByCategory(recommended: Product[]) {
+  // Map suitable_for to concerns based on common patterns
+  const concerns: string[] = [];
+  if (old.suitable_for.includes("acne-prone")) concerns.push("acne");
+  if (old.suitable_for.includes("sensitive"))
+    concerns.push("redness", "sensitivity");
+  if (old.suitable_for.includes("dry")) concerns.push("dryness", "hydration");
+  if (old.suitable_for.includes("oily")) concerns.push("oil control");
+  if (concerns.length === 0) concerns.push("general");
+
   return {
-    cleansers: recommended.filter((p) => p.category === "cleanser"),
-    moisturizers: recommended.filter((p) => p.category === "moisturizer"),
-    serums: recommended.filter((p) => p.category === "serum"),
-    exfoliants: recommended.filter((p) => p.category === "exfoliant"),
-    spf: recommended.filter((p) => p.category === "sunscreen"),
+    id: old.id,
+    name: old.name,
+    brand: old.brand,
+    category: old.category,
+    skin_types: old.suitable_for || [],
+    concerns: concerns,
+    price_estimate: old.price_estimate,
+    ingredients: ingredients,
   };
 }
 
-export async function handleRecommendProducts(request: Request, env: Env) {
-  const body = (await request.json()) as {
-    skin_profile?: SkinProfile;
-  };
-  const profile = body.skin_profile as SkinProfile;
+const products = (productsData as OldProduct[]).map(mapOldProductToNew);
+const inciDb = inciDbData as IngredientInfo[];
 
-  /* ---------------------------------------
-   * 1. Match products
-   * --------------------------------------- */
-  const recommended = matchProductsToSkinProfile(
-    profile,
-    products as Product[],
-    inciDb,
-    18 // number of products to return
-  );
-
-  /* ---------------------------------------
-   * 2. Enrich with ingredient safety info
-   * --------------------------------------- */
-  const enriched = recommended.map((prod) => {
-    const parsed = parseIngredients(prod.ingredients_full);
-    const safety = computeIngredientSafetyScore(parsed, inciDb);
-
-    return {
-      ...prod,
-      parsed_ingredients: parsed,
-      safety_score: safety,
-    };
-  });
-
-  /* ---------------------------------------
-   * 3. Group products by routine category
-   * --------------------------------------- */
-  const grouped = groupProductsByCategory(enriched);
-
-  /* ---------------------------------------
-   * 4. Return result
-   * --------------------------------------- */
-  const response = {
-    profile,
-    recommended_products: enriched,
-    grouped_products: grouped,
+export async function handleRecommendProducts(
+  request: Request,
+  _env: Env
+): Promise<Response> {
+  let body: {
+    skin_analysis?: SkinAnalysis;
+    cycle_lifestyle?: CycleLifestyleInput;
   };
 
-  return new Response(JSON.stringify(response), {
-    headers: { "Content-Type": "application/json" },
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON in request body" }),
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
+    );
+  }
+
+  if (!body.skin_analysis) {
+    return new Response(
+      JSON.stringify({ error: 'Missing "skin_analysis" in body' }),
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
+    );
+  }
+
+  const merged: SkinProfile = {
+    skin_analysis: body.skin_analysis,
+    cycle_lifestyle:
+      body.cycle_lifestyle ??
+      ({
+        cycle_phase: "unknown",
+        sleep_hours: 7,
+        hydration_cups: 6,
+        stress_level: 3,
+        mood: 3,
+      } as CycleLifestyleInput),
+    combined_triggers: [],
+  };
+
+  const recommended = matchProductsToSkinProfile(merged, products, inciDb, 20);
+
+  return new Response(JSON.stringify(recommended), {
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+    },
   });
 }

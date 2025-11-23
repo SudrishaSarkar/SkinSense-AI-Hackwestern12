@@ -2933,9 +2933,9 @@ const MainApp = () => {
         mood: 3, // Default
       };
 
-      // Call the backend API
+      // Call the backend API - imageBase64 is now { base64, mimeType } object
       const response = await generateRecommendationBundle(
-        imageBase64,
+        imageBase64, // This is now { base64, mimeType } from fileToBase64
         lifestyle
       );
 

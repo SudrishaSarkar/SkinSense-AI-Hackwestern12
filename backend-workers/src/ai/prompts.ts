@@ -1,7 +1,7 @@
 // src/ai/prompts.ts
 /**
  * AI System Prompts for SkinSense AI
- * 
+ *
  * ⚠️ IMPORTANT FOR PROMPT EDITORS:
  * - These prompts are used by Gemini API to generate structured JSON responses
  * - The JSON structure MUST match the TypeScript types in src/types/index.ts
@@ -11,7 +11,7 @@
 
 /**
  * Cycle Insights Prompt
- * 
+ *
  * Used by: src/routes/cycleInsights.ts
  * Input: SkinAnalysis + CycleLifestyleInput
  * Output: CycleLifestyleInput (enhanced with insights)
@@ -26,13 +26,13 @@ Return a JSON object with:
 
 /**
  * Skin Analysis Prompt (Gemini Vision)
- * 
+ *
  * ⚠️ CRITICAL: This prompt MUST return JSON matching the SkinAnalysis type exactly!
- * 
+ *
  * Used by: src/routes/analyzeSkin.ts
  * Input: Base64-encoded image
  * Output: SkinAnalysis JSON object
- * 
+ *
  * Required JSON Structure:
  * {
  *   "acne": "none" | "mild" | "moderate" | "severe",
@@ -44,7 +44,7 @@ Return a JSON object with:
  *   "probable_triggers": string[],
  *   "routine_focus": string[]
  * }
- * 
+ *
  * You can modify the prompt instructions, but the output structure must match exactly.
  * See GEMINI_PROMPT_GUIDE.md for full documentation.
  */
@@ -62,17 +62,17 @@ IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text). The 
 
 /**
  * Routine Generation Prompt
- * 
+ *
  * Used by: src/ai/routineGenerator.ts (optional enhancement)
  * Input: SkinProfile
  * Output: Routine JSON object
- * 
+ *
  * Required JSON Structure:
  * {
  *   "am": RoutineStep[],
  *   "pm": RoutineStep[]
  * }
- * 
+ *
  * Where RoutineStep = {
  *   "step_name": string,
  *   "product_name"?: string,
@@ -92,3 +92,36 @@ Each step should have:
 
 IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text).`;
 
+/**
+ * Product Matching Prompt
+ *
+ * Used by: src/logic/productMatcher.ts (AI-enhanced matching)
+ * Input: SkinProfile + array of Products
+ * Output: Array of product IDs sorted by relevance score
+ *
+ * Required JSON Structure:
+ * {
+ *   "ranked_products": [
+ *     {
+ *       "product_id": string,
+ *       "score": number (0-100),
+ *       "reason": string (explanation for why this product matches)
+ *     }
+ *   ]
+ * }
+ */
+export const PRODUCT_MATCHING_PROMPT = `You are a skincare expert. Analyze the user's skin profile and match it with the provided products.
+
+Consider:
+- Skin concerns (acne, redness, dryness, oiliness)
+- Texture issues and routine focus areas
+- Cycle phase and lifestyle factors
+- Ingredient compatibility and safety
+- Product category alignment with routine needs
+
+Return JSON with ranked_products array, where each item has:
+- product_id: the product's ID
+- score: relevance score from 0-100 (higher = better match)
+- reason: brief explanation of why this product matches the user's needs
+
+IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text). Rank products from most relevant to least relevant.`;

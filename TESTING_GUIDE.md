@@ -3,6 +3,7 @@
 ## ✅ Connection Status
 
 Everything is connected:
+
 - ✅ Frontend → Backend API (`http://localhost:8787`)
 - ✅ Backend → Gemini Vision API
 - ✅ Backend → Product matching & price comparison
@@ -21,24 +22,28 @@ wrangler secret put GEMINI_API_KEY
 ```
 
 Or set it temporarily in `wrangler.toml` (not recommended for production):
+
 ```toml
-GEMINI_API_KEY = "your-key-here"
+GEMINI_API_KEY = "AIzaSyAqQ-DZ00ZrtQNQ-0iKHPGZMN3BLfbei1Y"
 ```
 
 ### Step 2: Start Backend Server
 
 Open **Terminal 1**:
+
 ```bash
 cd backend-workers
 npm run dev
 ```
 
 You should see:
+
 ```
 ⬣ Listening on http://127.0.0.1:8787
 ```
 
 **Test the backend is running:**
+
 - Open browser: http://localhost:8787
 - Should see API info JSON
 - Or: http://localhost:8787/test
@@ -47,12 +52,14 @@ You should see:
 ### Step 3: Start Frontend Server
 
 Open **Terminal 2** (new terminal):
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 You should see:
+
 ```
   VITE v7.x.x  ready in xxx ms
 
@@ -65,21 +72,25 @@ You should see:
 1. **Open browser:** http://localhost:5173
 
 2. **Login/Signup:**
+
    - Use any email/password (frontend-only auth for demo)
    - Click "Log in" or "Sign up"
 
 3. **Upload Image:**
+
    - Click "📸 Upload or capture a photo"
    - Select a clear face photo (JPEG/PNG, max 10MB)
    - Should see "Image added ✔"
 
 4. **Fill Form:**
+
    - Select Gender
    - Select Age Range
    - Answer Likert questions (oily, dry, intensity)
    - Button should become active when all fields filled
 
 5. **Generate Plan:**
+
    - Click "Generate my skin care plan"
    - Should see loading spinner
    - Wait for API response (may take 10-30 seconds for Gemini)
@@ -98,16 +109,19 @@ You should see:
 ### Test Backend API Directly
 
 **1. Test endpoint (health check):**
+
 ```bash
 curl http://localhost:8787/test
 ```
 
 **2. Get API info:**
+
 ```bash
 curl http://localhost:8787/
 ```
 
 **3. Test skin analysis (requires base64 image):**
+
 ```bash
 # This is complex - better to test via frontend
 # Or use Postman/Insomnia with a base64 image
@@ -126,20 +140,25 @@ curl http://localhost:8787/
 ## 🐛 Troubleshooting
 
 ### Backend won't start
+
 - **Error:** `wrangler: command not found`
+
   - Fix: `npm install -g wrangler` or `npm install` in `backend-workers`
 
 - **Error:** `GEMINI_API_KEY is not set`
   - Fix: Set it via `wrangler secret put GEMINI_API_KEY`
 
 ### Frontend can't connect to backend
+
 - **Error:** `Failed to fetch` or `Network error`
   - Check: Is backend running on port 8787?
   - Check: Open http://localhost:8787/test in browser
   - Check: Browser console for CORS errors (shouldn't happen in dev)
 
 ### Gemini API errors
+
 - **Error:** `API error: 401` or `Invalid API key`
+
   - Fix: Check your Gemini API key is correct
   - Get key from: https://makersuite.google.com/app/apikey
 
@@ -147,7 +166,9 @@ curl http://localhost:8787/
   - Fix: Wait a few minutes, Gemini has rate limits
 
 ### Image upload issues
+
 - **Error:** "Please upload an image file"
+
   - Fix: Make sure file is JPEG/PNG
   - Fix: Check file size < 10MB
 
@@ -156,6 +177,7 @@ curl http://localhost:8787/
   - This is intentional validation
 
 ### No data showing in results
+
 - **Check:** Browser console for errors
 - **Check:** Network tab - did API call succeed?
 - **Check:** Is `apiData` populated? (React DevTools → Components)
@@ -210,11 +232,13 @@ When you click "Generate", the API should return:
 **Enable verbose logging:**
 
 Backend (add to `src/index.ts`):
+
 ```typescript
 console.log("Request:", pathname, request.method);
 ```
 
 Frontend (already in code):
+
 ```javascript
 console.error("Error generating plan:", error);
 ```
@@ -230,6 +254,7 @@ Check browser console and terminal for logs.
 ## ✅ Success Indicators
 
 You'll know it's working when:
+
 1. ✅ Backend shows "Worker is running!" at `/test`
 2. ✅ Frontend loads without errors
 3. ✅ Image upload works
@@ -242,7 +267,7 @@ You'll know it's working when:
 ---
 
 **Need help?** Check:
+
 - Browser DevTools Console (F12)
 - Backend terminal output
 - Network tab in DevTools
-

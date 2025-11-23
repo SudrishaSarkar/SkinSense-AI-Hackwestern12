@@ -1,30 +1,56 @@
+// src/routes/investment.ts
 import type { Env } from "../types";
-import { calculateFutureValue } from "../logic/investmentMath";
+import { corsHeaders } from "../utils/cors";
 
-interface InvestmentRequest {
-  monthly_savings: number;
-  years: number;
-  interest_rate?: number;
-}
-
-export async function handleInvestment(request: Request, env: Env) {
-  const body = (await request.json()) as InvestmentRequest;
-  
-  const monthlySavings = body.monthly_savings || 0;
-  const years = body.years || 1;
-  const interestRate = body.interest_rate || 0.05; // 5% default
-
-  const projectedValue = calculateFutureValue(monthlySavings, years, interestRate);
-
-  const result = {
-    monthly_savings: monthlySavings,
-    projected_value: projectedValue,
-    years: years,
-    explanation: `If you save $${monthlySavings} per month for ${years} year(s) at ${(interestRate * 100).toFixed(1)}% annual interest, you'll have approximately $${projectedValue.toFixed(2)}.`,
+export async function handleInvestment(
+  request: Request,
+  _env: Env
+): Promise<Response> {
+  let body: {
+    initial?: number;
+    monthly?: number;
+    years?: number;
+    annualRate?: number;
   };
 
-  return new Response(JSON.stringify(result), {
-    headers: { "Content-Type": "application/json" },
-  });
-}
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
+  }
 
+  const initial = body.initial ?? 0;
+  const monthly = body.monthly ?? 0;
+  const years = body.years ?? 0;
+  const annualRate = body.annualRate ?? 0.05;
+
+  const months = years * 12;
+  const monthlyRate = annualRate / 12;
+
+  let future = initial * Math.pow(1 + monthlyRate, months);
+  for (let i = 0; i < months; i++) {
+    future = future * (1 + monthlyRate) + monthly;
+  }
+
+  return new Response(
+    JSON.stringify({
+      initial,
+      monthly,
+      years,
+      annualRate,
+      future_value: future,
+    }),
+    {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    }
+  );
+}
