@@ -1,3 +1,4 @@
+// backend-workers/src/routes/cycleInsights.ts
 import { callGemini } from "../ai/geminiClient";
 import { CYCLE_INSIGHTS_PROMPT } from "../ai/prompts";
 import type { Env, SkinAnalysis, CycleLifestyleInput } from "../types";
@@ -7,7 +8,7 @@ export async function handleCycleInsights(request: Request, env: Env) {
     skin_analysis?: SkinAnalysis;
     cycle_lifestyle?: CycleLifestyleInput;
   };
-  
+
   const skin = body.skin_analysis as SkinAnalysis;
   const cycle = body.cycle_lifestyle as CycleLifestyleInput;
 
@@ -23,10 +24,10 @@ export async function handleCycleInsights(request: Request, env: Env) {
     ],
   };
 
-  const result = await callGemini("gemini-1.5-pro-latest", payload, env);
+  // Use stable, valid model name
+  const result = await callGemini("gemini-1.5-pro", payload, env);
 
   return new Response(JSON.stringify(result), {
     headers: { "Content-Type": "application/json" },
   });
 }
-

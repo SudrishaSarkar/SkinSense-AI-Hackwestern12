@@ -236,3 +236,34 @@ export const ALLOWED_SKIN_TYPES = [
   "Sensitive",
   "Unsure",
 ];
+
+/**
+ * Cycle Insights Prompt
+ * Used by: src/routes/cycleInsights.ts
+ */
+export const CYCLE_INSIGHTS_PROMPT = `You are a skincare expert. Analyze the provided skin analysis and cycle/lifestyle data to generate personalized insights.
+
+Return a JSON object with:
+- cycle_impact: How the current cycle phase affects skin
+- lifestyle_factors: Impact of sleep, hydration, stress, mood
+- recommendations: Specific actionable advice
+- priority_concerns: Top 3 concerns to address
+
+IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text).`;
+
+/**
+ * Routine Generation Prompt
+ * Used by: src/ai/routineGenerator.ts (optional enhancement)
+ */
+export const ROUTINE_GENERATION_PROMPT = `Generate a personalized AM and PM skincare routine based on the skin profile.
+
+Return JSON with:
+- am: array of routine steps
+- pm: array of routine steps
+
+Each step should have:
+- step_name: name of the step
+- product_name: optional product recommendation
+- instruction: detailed instruction
+
+IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text).`;

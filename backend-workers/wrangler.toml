@@ -10,7 +10,8 @@ GEMINI_API_KEY = ""
 WALMART_API_KEY = ""
 AMAZON_RAPIDAPI_KEY="d3cf81a7b0msha8e738098209d96p17e625jsn67044ff4299e"
 ELEVENLABS_API_KEY = ""
-ENVIRONMENT = "local"  # Set to "production" when deploying
+# ENVIRONMENT = "local"  # Uncomment for fast mock mode (bypasses Gemini API)
+# Leave commented to use real Gemini Vision API (slower, ~10-30 seconds per request)
 
 # KV Namespace for caching
 [[kv_namespaces]]

@@ -1,10 +1,13 @@
+// backend-workers/src/ai/geminiClient.ts
+import type { Env } from "../types";
+
 interface GeminiSafetyRating {
   category: string;
   probability: string;
 }
 
 interface GeminiContent {
-  parts: { text: string }[];
+  parts: { text?: string; inline_data?: any }[];
   role: string;
 }
 
@@ -19,69 +22,77 @@ export interface GeminiResponse {
   candidates: GeminiCandidate[];
 }
 
+/**
+ * VISION CALL — images + text
+ */
 export async function callGeminiVision(
   base64Image: string,
   mimeType: string,
   prompt: string,
   apiKey: string
 ): Promise<GeminiResponse> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`;
+  // Use gemini-2.5-flash (available on free tier, supports vision)
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const requestBody = {
     contents: [
       {
         parts: [
           {
-            text: prompt,
-          },
-          {
             inline_data: {
-              mime_type: mimeType,
+              mime_type: mimeType, // Gemini API expects snake_case
               data: base64Image,
             },
           },
+          {
+            text: prompt,
+          },
         ],
-      },
-    ],
-    generation_config: {
-      temperature: 0.2,
-      top_k: 32,
-      top_p: 1,
-      max_output_tokens: 4096,
-      stop_sequences: [],
-    },
-    safety_settings: [
-      {
-        category: "HARM_CATEGORY_HARASSMENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_HATE_SPEECH",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
       },
     ],
   };
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Gemini API request failed: ${response.status} ${response.statusText} - ${errorBody}`);
+    const errorText = await response.text();
+    throw new Error(`Gemini Vision Error ${response.status}: ${errorText}`);
   }
 
-  return await response.json();
+  return response.json();
+}
+
+/**
+ * TEXT-ONLY CALL — for routine generation & cycle insights
+ */
+export async function callGemini(
+  model: string,
+  payload: any,
+  env: Env
+): Promise<any> {
+  // FIXED: always use v1 (v1beta deprecated)
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await response.json()) as any;
+
+  if (data.error) {
+    throw new Error(JSON.stringify(data.error));
+  }
+
+  try {
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    return JSON.parse(text);
+  } catch {
+    return data;
+  }
 }
