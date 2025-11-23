@@ -126,6 +126,7 @@ export interface StorePrice {
   store: "Walmart" | "Shoppers" | "AmazonCA" | "SephoraCA";
   price: number | null; // null if failed to fetch
   url: string;
+  image?: string | null; // optional product image URL
   last_checked: number; // timestamp (ms)
 }
 
