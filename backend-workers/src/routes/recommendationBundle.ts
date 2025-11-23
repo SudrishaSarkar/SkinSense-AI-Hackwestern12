@@ -113,12 +113,15 @@ function mapNewSkinAnalysisToLegacy(
 }
 
 // Fast local mock bundle (no Gemini, no external APIs)
-function getMockBundle(lifestyle: CycleLifestyleInput): {
+async function getMockBundle(
+  lifestyle: CycleLifestyleInput,
+  env?: Env
+): Promise<{
   skin_profile: SkinProfile;
   routine: Routine;
   recommended_products: Product[];
   price_comparisons: PriceComparisonResult[];
-} {
+}> {
   const mockSkinAnalysis: SkinAnalysis = {
     acne: "mild",
     redness: "moderate",
@@ -144,7 +147,13 @@ function getMockBundle(lifestyle: CycleLifestyleInput): {
 
   const routine = buildRuleBasedRoutine(profile);
 
-  const recommended = matchProductsToSkinProfile(profile, products, inciDb, 6);
+  const recommended = await matchProductsToSkinProfile(
+    profile,
+    products,
+    inciDb,
+    6,
+    env
+  );
 
   const prices: PriceComparisonResult[] = recommended.map((p) => ({
     product_name: p.name,
@@ -328,7 +337,7 @@ export async function handleRecommendationBundle(
       // FAST MOCK MODE (only if no frontend analysis provided)
       if (env.ENVIRONMENT === "local" || !env.GEMINI_API_KEY) {
         console.log("🔥 Using mock mode (local or no API key)");
-        const mock = getMockBundle(cycleInput);
+        const mock = await getMockBundle(cycleInput, env);
         return new Response(JSON.stringify(mock), {
           headers: {
             "Content-Type": "application/json",
@@ -453,13 +462,14 @@ export async function handleRecommendationBundle(
     const routine = await generateRoutine(profile, env);
     console.log("🔥 Step 3 complete: Routine generated");
 
-    // 4) Product match
-    console.log("🔥 Step 4: Matching products");
-    const recommended = matchProductsToSkinProfile(
+    // 4) Product match (AI-powered)
+    console.log("🔥 Step 4: Matching products with AI");
+    const recommended = await matchProductsToSkinProfile(
       profile,
       products,
       inciDb,
-      20
+      20,
+      env
     );
 
     console.log(

@@ -3,6 +3,11 @@ import type { Env } from "../types";
 
 // Google Auth for Cloudflare Workers (no Node crypto)
 export async function getGoogleAccessToken(env: Env): Promise<string> {
+  if (!env.GOOGLE_SERVICE_ACCOUNT) {
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT is not set in environment variables"
+    );
+  }
   const sa = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT);
 
   const header = {
@@ -66,7 +71,7 @@ export async function getGoogleAccessToken(env: Env): Promise<string> {
     },
   });
 
-  const data = await resp.json();
+  const data = (await resp.json()) as { access_token?: string };
   if (!data.access_token) throw new Error("Failed to obtain access token");
 
   return data.access_token;

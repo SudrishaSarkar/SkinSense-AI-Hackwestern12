@@ -79,18 +79,35 @@ IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text). The 
  *   "instruction": string
  * }
  */
-export const ROUTINE_GENERATION_PROMPT = `Generate a personalized AM and PM skincare routine based on the skin profile.
+export const ROUTINE_GENERATION_PROMPT = `You are an expert skincare consultant. Generate a COMPLETE, personalized skincare routine from scratch based on the user's skin analysis and lifestyle factors.
 
-Return JSON with:
-- am: array of routine steps
-- pm: array of routine steps
+Analyze the provided skin profile carefully:
+- Skin concerns (acne, redness, dryness, oiliness levels)
+- Texture issues and observations
+- Cycle phase and lifestyle factors (sleep, hydration, stress, mood)
+- Probable triggers and routine focus areas
 
-Each step should have:
-- step_name: name of the step
-- product_name: optional product recommendation
-- instruction: detailed instruction
+Generate a comprehensive AM and PM routine that addresses their specific needs.
 
-IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text).`;
+Return JSON in this EXACT format:
+{
+  "steps": [
+    {
+      "step": "Step name (e.g., 'Cleanser', 'Serum', 'Moisturizer')",
+      "time": "AM" | "PM" | "AM_PM",
+      "description": "Detailed, personalized instruction explaining what to use, why, and how to apply it. Be specific about ingredients, application frequency, and timing."
+    }
+  ],
+  "notes": "2-3 sentences summarizing the routine strategy and key considerations for this user's skin"
+}
+
+IMPORTANT:
+- Create steps that directly address their specific skin concerns
+- Consider their cycle phase (e.g., avoid harsh actives during menstrual phase)
+- Include sunscreen in AM routine
+- Be specific about ingredients and product types
+- Return ONLY valid JSON (no markdown code blocks, no extra text)
+- The "steps" array should contain ALL steps for both AM and PM (use "time" field to differentiate)`;
 
 /**
  * Product Matching Prompt
@@ -110,18 +127,30 @@ IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text).`;
  *   ]
  * }
  */
-export const PRODUCT_MATCHING_PROMPT = `You are a skincare expert. Analyze the user's skin profile and match it with the provided products.
+export const PRODUCT_MATCHING_PROMPT = `You are an expert skincare consultant. Analyze the user's detailed skin profile and intelligently match it with the provided products.
 
-Consider:
-- Skin concerns (acne, redness, dryness, oiliness)
-- Texture issues and routine focus areas
-- Cycle phase and lifestyle factors
-- Ingredient compatibility and safety
-- Product category alignment with routine needs
+Carefully consider:
+- Specific skin concerns and severity levels (acne, redness, dryness, oiliness)
+- Texture observations and routine focus areas
+- Cycle phase and lifestyle factors (sleep, hydration, stress, mood)
+- Ingredient compatibility, safety, and potential interactions
+- Product category alignment (cleanser, serum, moisturizer, treatment, etc.)
+- Skin type compatibility
+- Avoid products with ingredients that could worsen their specific concerns
+
+For each product, evaluate:
+- How well it addresses their primary concerns
+- Ingredient safety for their skin type
+- Compatibility with their cycle phase and lifestyle
+- Overall suitability score
 
 Return JSON with ranked_products array, where each item has:
-- product_id: the product's ID
-- score: relevance score from 0-100 (higher = better match)
-- reason: brief explanation of why this product matches the user's needs
+- product_id: the product's ID (must match exactly from the provided products)
+- score: relevance score from 0-100 (higher = better match, be precise)
+- reason: 1-2 sentence explanation of why this product matches their specific needs
 
-IMPORTANT: Return ONLY valid JSON (no markdown code blocks, no extra text). Rank products from most relevant to least relevant.`;
+IMPORTANT:
+- Only return product IDs that exist in the provided products list
+- Rank products from most relevant to least relevant
+- Return ONLY valid JSON (no markdown code blocks, no extra text)
+- Be selective - only recommend products that truly match their needs`;

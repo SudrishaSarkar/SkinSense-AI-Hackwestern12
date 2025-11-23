@@ -1,3 +1,4 @@
+import type { Env } from "../types";
 import { getGoogleAccessToken } from "./googleAuth";
 
 export async function callGeminiVision(

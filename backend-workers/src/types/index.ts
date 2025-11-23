@@ -7,6 +7,7 @@ export interface Env {
   SEPHORA_RAPIDAPI_KEY: string;
   RAPIDAPI_KEY: string; // For backward compatibility
   ENVIRONMENT?: string; // "local" to enable mock mode
+  GOOGLE_SERVICE_ACCOUNT?: string; // Optional, for service account auth (not used in frontend flow)
 }
 
 // ====== SKIN ANALYSIS (legacy shape used by frontend) ======
