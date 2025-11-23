@@ -76,8 +76,6 @@
 
 // // // // // export default App;
 
-
-
 // // // // // function App() {
 // // // // //   return (
 // // // // //     <div className="min-h-screen flex items-center justify-center bg-skinBg text-skinDeep">
@@ -87,7 +85,6 @@
 // // // // // }
 
 // // // // // export default App;
-
 
 // // // // import React, { useState } from "react";
 // // // // import Navbar from "./components/Navbar";
@@ -118,9 +115,6 @@
 // // // // }
 
 // // // // export default App;
-
-
-
 
 // // // import React, { useEffect, useRef, useState } from "react";
 
@@ -584,7 +578,6 @@
 // // // };
 
 // // // export default App;
-
 
 // // import React, { useEffect, useRef, useState } from "react";
 
@@ -1097,7 +1090,6 @@
 // //                   </div>
 // //                 )}
 
-
 // //                 {section.id === "filters" && (
 // //                   <div className="viz-card">
 // //                     <h3 className="viz-title">Filter & Compare</h3>
@@ -1175,8 +1167,6 @@
 // // };
 
 // // export default App;
-
-
 
 // import React, { useEffect, useRef, useState } from "react";
 
@@ -1773,10 +1763,6 @@
 // };
 
 // export default App;
-
-
-
-
 
 // import React, { useEffect, useRef, useState } from "react";
 
@@ -2540,10 +2526,9 @@
 
 // export default App;
 
-
-
 // frontend/src/App.jsx
 import React, { useEffect, useRef, useState } from "react";
+import { fileToBase64, generateRecommendationBundle } from "./api/skinsense";
 
 /* =======================
    STEP METADATA (AFTER GENERATE)
@@ -2668,7 +2653,9 @@ const AuthScreen = ({ onAuthSuccess }) => {
           <div className="auth-tabs">
             <button
               type="button"
-              className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`}
+              className={`auth-tab ${
+                mode === "login" ? "auth-tab-active" : ""
+              }`}
               onClick={() => setMode("login")}
             >
               Log in
@@ -2797,11 +2784,13 @@ const MainApp = () => {
   const fileInputRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-
   // 1. Add state to store the image data (as a base64 string)
   const [imageData, setImageData] = useState(null);
   // Add state to store results from the backend
   const [analysisResult, setAnalysisResult] = useState(null);
+  // Store API response data
+  const [apiData, setApiData] = useState(null);
+  const [apiError, setApiError] = useState(null);
 
   const [userFilters, setUserFilters] = useState({
     gender: "",
@@ -2885,19 +2874,25 @@ const MainApp = () => {
     }
   };
 
-  const handleFileChange = (e) => {
+  const [imageBase64, setImageBase64] = useState(null);
+
+  const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      setHasUploadedImage(true);
-      // 2. Convert the image file to a base64 string
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        // The result contains the base64 string
-        setImageData(reader.result);
+      try {
+        // Convert to base64 (without data URL prefix) for API
+        const base64 = await fileToBase64(file);
+        setImageBase64(base64);
+        // Also keep full data URL for preview if needed
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImageData(reader.result);
+        };
+        reader.readAsDataURL(file);
         setHasUploadedImage(true);
-      };
-      reader.readAsDataURL(file);
-
+      } catch (error) {
+        console.error("Error converting image:", error);
+      }
     }
   };
 
@@ -2910,21 +2905,21 @@ const MainApp = () => {
   //   }, 50);
   // };
 
-//   const handleGeneratePlan = () => {
-//   if (!canStartFlow || isGenerating) return;
+  //   const handleGeneratePlan = () => {
+  //   if (!canStartFlow || isGenerating) return;
 
-//   setIsGenerating(true);
+  //   setIsGenerating(true);
 
-//   // Fake loading delay (so spinner is visible)
-//   setTimeout(() => {
-//     setHasGeneratedPlan(true);
-//     setIsGenerating(false);
+  //   // Fake loading delay (so spinner is visible)
+  //   setTimeout(() => {
+  //     setHasGeneratedPlan(true);
+  //     setIsGenerating(false);
 
-//     setTimeout(() => {
-//       handleScrollTo("analysis");
-//     }, 60);
-//   }, 1200);
-// };
+  //     setTimeout(() => {
+  //       handleScrollTo("analysis");
+  //     }, 60);
+  //   }, 1200);
+  // };
 
   // // 3. Update handleGeneratePlan to send the image to the backend
   // const handleGeneratePlan = async () => {
@@ -2963,44 +2958,56 @@ const MainApp = () => {
   //   }
   // };
 
-
-
-    // Replace BOTH old handleGeneratePlan definitions with just this one:
   const handleGeneratePlan = async () => {
-    if (!canStartFlow || isGenerating) return;
+    if (!canStartFlow || isGenerating || !imageBase64) return;
 
     setIsGenerating(true);
+    setApiError(null);
 
     try {
-      // Optional: if you still want a minimum spinner time, uncomment:
-      // await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Map frontend form data to backend lifestyle format
+      const lifestyle = {
+        cycle_phase: "unknown",
+        sleep_hours: 7,
+        hydration_cups: 6,
+        stress_level:
+          userFilters.intensity !== null
+            ? Math.min(5, Math.max(1, userFilters.intensity + 1))
+            : 3,
+        mood: 3,
+      };
 
-      const response = await fetch("http://localhost:5000/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image: imageData, filters: userFilters }),
-      });
+      // Call the backend API
+      const response = await generateRecommendationBundle(
+        imageBase64,
+        lifestyle
+      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const results = await response.json();
-      setAnalysisResult(results);
+      // Store the response
+      setApiData(response);
       setHasGeneratedPlan(true);
 
-      // Scroll to analysis section after we have results
-      setTimeout(() => handleScrollTo("analysis"), 100);
+      // Scroll to results
+      setTimeout(() => {
+        handleScrollTo("analysis");
+      }, 100);
     } catch (error) {
-      console.error("Failed to get analysis from backend:", error);
-      // TODO: show a user-friendly error message in the UI if you want
+      console.error("Error generating plan:", error);
+      const errorMessage =
+        error.message || "Failed to generate skincare plan. Please try again.";
+
+      // Check if it's a face validation error from backend
+      if (errorMessage.includes("face") || errorMessage.includes("Face")) {
+        setApiError(
+          "Please upload a clear photo of your face. The image you uploaded doesn't appear to contain a face."
+        );
+      } else {
+        setApiError(errorMessage);
+      }
     } finally {
       setIsGenerating(false);
     }
   };
-
 
   return (
     <div className="app">
@@ -3141,9 +3148,7 @@ const MainApp = () => {
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="nonbinary">Non-binary</option>
-                        <option value="prefer-not">
-                          Prefer not to say
-                        </option>
+                        <option value="prefer-not">Prefer not to say</option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -3179,9 +3184,7 @@ const MainApp = () => {
                       <LikertQuestion
                         label="Would you describe the intensity of your skincare as intensive?"
                         value={userFilters.intensity}
-                        onChange={(val) =>
-                          handleLikertChange("intensity", val)
-                        }
+                        onChange={(val) => handleLikertChange("intensity", val)}
                       />
                     </div>
                   </div>
