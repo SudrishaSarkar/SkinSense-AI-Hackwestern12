@@ -14,7 +14,7 @@ interface LikertAnswers {
 }
 
 interface AnalyzeSkinRequest {
-  image: string; // "data:image/jpeg;base64,..."
+  image: string; // "data:image/jpeg;base64,...";
   preExistingConditions: string[];
   likertAnswers: LikertAnswers;
   gender: Gender; // New field
@@ -75,7 +75,7 @@ function mapGeminiResponseToLegacyAnalysis(geminiResponse: GeminiSkinAnalysisRes
     texture_notes: texture_notes,
     non_medical_summary: geminiResponse.integrative_summary.summary_text,
     
-    // These fields are not in the new V2 response, so we provide defaults.
+    // These fields are not in the new V2 response, so we provide defaults. 
     probable_triggers: [], 
     
     // Map the new key_concerns directly to routine_focus
