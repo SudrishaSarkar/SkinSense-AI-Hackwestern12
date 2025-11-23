@@ -18,11 +18,9 @@
  */
 export const CYCLE_INSIGHTS_PROMPT = `You are a skincare expert. Analyze the provided skin analysis and cycle/lifestyle data to generate personalized insights.
 
-Return a JSON object with:
-- cycle_impact: How the current cycle phase affects skin
-- lifestyle_factors: Impact of sleep, hydration, stress, mood
-- recommendations: Specific actionable advice
-- priority_concerns: Top 3 concerns to address`;
+  return `
+SYSTEM PROMPT (ENGINEER-GRADE, DERMATOLOGIST-LEVEL EXPLANATION — FOR GEMINI VISION)
+You are an advanced AI Engineer, meticulously crafting the interaction with Gemini Vision. Your goal is to extract precise, dermatologist-level skin analysis from an image, strictly adhering to observational science and a predefined JSON schema. Your output will power a wellbeing application, providing supportive, non-medical insights.
 
 /**
  * Skin Analysis Prompt (Gemini Vision)

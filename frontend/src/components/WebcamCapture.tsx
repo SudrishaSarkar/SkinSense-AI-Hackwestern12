@@ -1,82 +1,58 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useRef, useEffect } from "react";
 
-const WebcamCapture: React.FC = () => {
-  const [image, setImage] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+interface WebcamCaptureProps {
+  onCapture: (imageData: string | null) => void;
+  onCancel: () => void;
+}
+
+const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture, onCancel }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+  useEffect(() => {
+    // Request access to the media devices
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch((err) => {
+        console.error("Webcam error:", err);
+        alert('Error accessing webcam. Please ensure you have a webcam connected and have granted permission.');
+        onCancel(); // If camera access fails, effectively cancel the capture flow
+      });
+
+    // Cleanup: stop the video stream when the component unmounts
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
       }
-    } catch (err) {
-      console.error("Error accessing webcam: ", err);
-      alert('Error accessing webcam. Please ensure you have a webcam connected and have granted permission.');
-    }
-  };
+    };
+  }, [onCancel]); // Include onCancel in dependencies to ensure cleanup can call it if needed
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
-
-  const captureFrame = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
+  const handleCapture = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const context = canvas.getContext("2d");
       if (context) {
-        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        setImage(dataUrl);
-        stopCamera();
+        context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
+        const dataUrl = canvas.toDataURL("image/jpeg");
+        onCapture(dataUrl);
       }
     }
-  };
-
-  const handleAnalyzeClick = () => {
-    if (image) {
-      console.log('Base64 Image for Analysis:', image);
-      // TODO: Send 'image' (base64 string) to backend/Gemini Vision
-    } else {
-      alert('Please capture an image first.');
-    }
-  };
-
-  const resetCapture = () => {
-    setImage(null);
-    startCamera();
   };
 
   return (
-    <div className="webcam-capture-container">
-      <h2>Or use your webcam</h2>
-      {!stream && !image && (
-        <button onClick={startCamera}>Start Camera</button>
-      )}
-      {stream && !image && (
-        <div className="video-container">
-          <video ref={videoRef} autoPlay playsInline muted />
-          <button onClick={captureFrame}>Capture Photo</button>
-        </div>
-      )}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      {image && (
-        <div className="image-preview">
-          <h3>Preview:</h3>
-          <img src={image} alt="Skin Selfie" style={{ maxWidth: '300px', maxHeight: '300px' }} />
-          <button onClick={handleAnalyzeClick}>Analyze Skin</button>
-          <button onClick={resetCapture}>Retake</button>
-        </div>
-      )}
+    <div className="webcam-capture">
+      <video ref={videoRef} autoPlay playsInline className="webcam-video" />
+      <div className="webcam-buttons">
+        <button className="primary-btn" onClick={handleCapture}>Capture</button>
+        <button className="secondary-btn" onClick={onCancel}>Cancel</button>
+      </div>
     </div>
   );
 };
