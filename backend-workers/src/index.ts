@@ -7,6 +7,8 @@ import { handlePriceCompare } from "./api/priceCompare";
 import { handleInvestment } from "./routes/investment";
 import { handleRecommendationBundle } from "./routes/recommendationBundle";
 
+import { corsHeaders } from "./utils/cors";
+
 export default {
   async fetch(
     request: Request,
@@ -15,6 +17,11 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
 
     try {
       // Root route - API info
@@ -35,7 +42,10 @@ export default {
             },
           }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders,
+            },
           }
         );
       }
@@ -45,7 +55,10 @@ export default {
         return new Response(
           JSON.stringify({ status: "ok", message: "Worker is running!" }),
           {
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders,
+            },
           }
         );
       }
@@ -87,7 +100,10 @@ export default {
         }),
         {
           status: 404,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
         }
       );
     } catch (err: any) {
@@ -96,7 +112,10 @@ export default {
         JSON.stringify({ error: err.message ?? "Internal error" }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
         }
       );
     }

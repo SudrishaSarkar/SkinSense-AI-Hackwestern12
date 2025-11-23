@@ -15,17 +15,44 @@ export interface Env {
  *  SKIN ANALYSIS FROM GEMINI VISION
  * ----------------------------------------------------------- */
 
+/**
+ * Severity level for skin conditions
+ * Used by: SkinAnalysis interface
+ */
 export type Level = "none" | "mild" | "moderate" | "severe";
 
+/**
+ * Skin Analysis Result from Gemini Vision API
+ *
+ * ⚠️ CRITICAL: This structure MUST match what Gemini returns!
+ * If you modify SKIN_ANALYSIS_PROMPT, ensure it returns this exact structure.
+ *
+ * Used by:
+ * - src/routes/analyzeSkin.ts (returns this)
+ * - src/routes/recommendationBundle.ts (uses this)
+ * - src/ai/routineGenerator.ts (uses this)
+ * - src/logic/productMatcher.ts (uses this)
+ * - Frontend displays this data
+ *
+ * @see GEMINI_PROMPT_GUIDE.md for prompt editing guidelines
+ */
 export interface SkinAnalysis {
+  /** Acne/breakout severity level */
   acne: Level;
+  /** Redness/inflammation severity level */
   redness: Level;
+  /** Dryness/flakiness severity level */
   dryness: Level;
+  /** Oiliness/shine severity level */
   oiliness: Level;
-  texture_notes: string[]; // e.g. ["visible congestion", "flakiness"]
-  non_medical_summary: string; // textual summary of what the model sees
-  probable_triggers: string[]; // only based on visual cues
-  routine_focus: string[]; // e.g. ["barrier repair", "oil control"]
+  /** Specific texture observations, e.g. ["visible congestion", "flakiness", "rough texture"] */
+  texture_notes: string[];
+  /** Plain-language summary (2-3 sentences) of what the model sees - non-medical language */
+  non_medical_summary: string;
+  /** Potential triggers based on visual cues, e.g. ["stress", "sleep", "barrier damage"] */
+  probable_triggers: string[];
+  /** Focus areas for routine, e.g. ["barrier repair", "oil control", "hydration"] */
+  routine_focus: string[];
 }
 
 /** -----------------------------------------------------------

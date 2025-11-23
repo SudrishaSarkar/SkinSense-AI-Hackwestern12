@@ -15,6 +15,7 @@ import { matchProductsToSkinProfile } from "../logic/productMatcher";
 import { fetchAllPrices } from "../logic/logicFetcher";
 import productsData from "../datasets/products.json";
 import inciDbData from "../datasets/inci.json";
+import { corsHeaders } from "../utils/cors";
 
 const products = productsData as Product[];
 const inciDb = inciDbData as IngredientInfo[];
@@ -42,7 +43,45 @@ export async function handleRecommendationBundle(request: Request, env: Env) {
       }),
       env
     );
+
+    // Check if skin analysis failed
+    if (!skinResp.ok) {
+      const errorData = (await skinResp.json()) as {
+        error?: string;
+        details?: string;
+      };
+      return new Response(
+        JSON.stringify({
+          error: errorData.error || "Skin analysis failed",
+          details: errorData.details,
+        }),
+        {
+          status: skinResp.status,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
+    }
+
     const skinData = (await skinResp.json()) as SkinAnalysis;
+
+    // Check if Gemini returned an error (face validation failed)
+    if ((skinData as any).error) {
+      return new Response(
+        JSON.stringify({
+          error: (skinData as any).error || "Image does not contain a face",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
+    }
 
     // 2. Cycle insights
     const cycleResp = await handleCycleInsights(
@@ -106,12 +145,32 @@ export async function handleRecommendationBundle(request: Request, env: Env) {
         recommended_products: recommendedProducts,
         price_comparisons: priceComparisons,
       }),
-      { headers: { "Content-Type": "application/json" } }
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
     );
   } catch (err) {
+    // Log the full error for debugging
+    console.error("Bundle error:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+
     return new Response(
-      JSON.stringify({ error: "Bundle failed", details: String(err) }),
-      { status: 500 }
+      JSON.stringify({
+        error: "Bundle failed",
+        details: errorMessage,
+        stack: errorStack,
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
     );
   }
 }

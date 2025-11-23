@@ -76,8 +76,6 @@
 
 // // // // // export default App;
 
-
-
 // // // // // function App() {
 // // // // //   return (
 // // // // //     <div className="min-h-screen flex items-center justify-center bg-skinBg text-skinDeep">
@@ -87,7 +85,6 @@
 // // // // // }
 
 // // // // // export default App;
-
 
 // // // // import React, { useState } from "react";
 // // // // import Navbar from "./components/Navbar";
@@ -118,9 +115,6 @@
 // // // // }
 
 // // // // export default App;
-
-
-
 
 // // // import React, { useEffect, useRef, useState } from "react";
 
@@ -584,7 +578,6 @@
 // // // };
 
 // // // export default App;
-
 
 // // import React, { useEffect, useRef, useState } from "react";
 
@@ -1097,7 +1090,6 @@
 // //                   </div>
 // //                 )}
 
-
 // //                 {section.id === "filters" && (
 // //                   <div className="viz-card">
 // //                     <h3 className="viz-title">Filter & Compare</h3>
@@ -1175,8 +1167,6 @@
 // // };
 
 // // export default App;
-
-
 
 // import React, { useEffect, useRef, useState } from "react";
 
@@ -1773,10 +1763,6 @@
 // };
 
 // export default App;
-
-
-
-
 
 // import React, { useEffect, useRef, useState } from "react";
 
@@ -2540,10 +2526,9 @@
 
 // export default App;
 
-
-
 // frontend/src/App.jsx
 import React, { useEffect, useRef, useState } from "react";
+import { fileToBase64, generateRecommendationBundle } from "./api/skinsense";
 
 /* =======================
    STEP METADATA (AFTER GENERATE)
@@ -2668,7 +2653,9 @@ const AuthScreen = ({ onAuthSuccess }) => {
           <div className="auth-tabs">
             <button
               type="button"
-              className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`}
+              className={`auth-tab ${
+                mode === "login" ? "auth-tab-active" : ""
+              }`}
               onClick={() => setMode("login")}
             >
               Log in
@@ -2797,6 +2784,13 @@ const MainApp = () => {
   const fileInputRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Store uploaded image as base64
+  const [imageBase64, setImageBase64] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+
+  // Store API response data
+  const [apiData, setApiData] = useState(null);
+  const [apiError, setApiError] = useState(null);
 
   const [userFilters, setUserFilters] = useState({
     gender: "",
@@ -2880,10 +2874,34 @@ const MainApp = () => {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      setHasUploadedImage(true);
+      // Basic validation: check file type
+      if (!file.type.startsWith("image/")) {
+        setApiError("Please upload an image file (JPEG, PNG, etc.)");
+        return;
+      }
+
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setApiError(
+          "Image is too large. Please upload an image smaller than 10MB."
+        );
+        return;
+      }
+
+      try {
+        // Convert to base64 and store
+        const base64 = await fileToBase64(file);
+        setImageBase64(base64);
+        setUploadedFile(file);
+        setHasUploadedImage(true);
+        setApiError(null); // Clear any previous errors
+      } catch (error) {
+        console.error("Error converting image:", error);
+        setApiError("Failed to process image. Please try again.");
+      }
     }
   };
 
@@ -2896,22 +2914,56 @@ const MainApp = () => {
   //   }, 50);
   // };
 
-  const handleGeneratePlan = () => {
-  if (!canStartFlow || isGenerating) return;
+  const handleGeneratePlan = async () => {
+    if (!canStartFlow || isGenerating || !imageBase64) return;
 
-  setIsGenerating(true);
+    setIsGenerating(true);
+    setApiError(null);
 
-  // Fake loading delay (so spinner is visible)
-  setTimeout(() => {
-    setHasGeneratedPlan(true);
-    setIsGenerating(false);
+    try {
+      // Map frontend form data to backend lifestyle format
+      const lifestyle = {
+        cycle_phase: "unknown", // Default, can be enhanced later
+        sleep_hours: 7, // Default
+        hydration_cups: 6, // Default
+        stress_level:
+          userFilters.intensity !== null
+            ? Math.min(5, Math.max(1, userFilters.intensity + 1)) // Map 0-4 to 1-5
+            : 3,
+        mood: 3, // Default
+      };
 
-    setTimeout(() => {
-      handleScrollTo("analysis");
-    }, 60);
-  }, 1200);
-};
+      // Call the backend API
+      const response = await generateRecommendationBundle(
+        imageBase64,
+        lifestyle
+      );
 
+      // Store the response
+      setApiData(response);
+      setHasGeneratedPlan(true);
+
+      // Scroll to results
+      setTimeout(() => {
+        handleScrollTo("analysis");
+      }, 100);
+    } catch (error) {
+      console.error("Error generating plan:", error);
+      const errorMessage =
+        error.message || "Failed to generate skincare plan. Please try again.";
+
+      // Check if it's a face validation error from backend
+      if (errorMessage.includes("face") || errorMessage.includes("Face")) {
+        setApiError(
+          "Please upload a clear photo of your face. The image you uploaded doesn't appear to contain a face."
+        );
+      } else {
+        setApiError(errorMessage);
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="app">
@@ -3052,9 +3104,7 @@ const MainApp = () => {
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="nonbinary">Non-binary</option>
-                        <option value="prefer-not">
-                          Prefer not to say
-                        </option>
+                        <option value="prefer-not">Prefer not to say</option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -3090,9 +3140,7 @@ const MainApp = () => {
                       <LikertQuestion
                         label="Would you describe the intensity of your skincare as intensive?"
                         value={userFilters.intensity}
-                        onChange={(val) =>
-                          handleLikertChange("intensity", val)
-                        }
+                        onChange={(val) => handleLikertChange("intensity", val)}
                       />
                     </div>
                   </div>
@@ -3115,6 +3163,21 @@ const MainApp = () => {
                   <div className="generate-spinner-wrap">
                     <div className="circle-spinner" />
                     <p className="spinner-label">Preparing your results…</p>
+                  </div>
+                )}
+
+                {apiError && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem",
+                      background: "#fee",
+                      color: "#c33",
+                      borderRadius: "8px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {apiError}
                   </div>
                 )}
 
@@ -3171,19 +3234,94 @@ const MainApp = () => {
                       <div className="viz-bars">
                         <div className="viz-bar">
                           <span>Acne</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis?.acne
+                                ? `${
+                                    apiData.skin_profile.skin_analysis.acne ===
+                                    "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .acne === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .acne === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Redness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.redness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .redness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .redness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .redness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Oiliness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.oiliness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .oiliness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .oiliness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .oiliness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Dryness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.dryness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .dryness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .dryness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .dryness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                       </div>
 
@@ -3191,14 +3329,22 @@ const MainApp = () => {
 
                       <h3 className="viz-title">Skin Summary</h3>
                       <p className="viz-paragraph">
-                        “Your skin appears moderately oily with mild
-                        inflammation around the cheeks. Stress and low sleep
-                        might be contributing to congestion.”
+                        {apiData?.skin_profile?.skin_analysis
+                          ?.non_medical_summary ||
+                          "Your skin appears moderately oily with mild inflammation around the cheeks. Stress and low sleep might be contributing to congestion."}
                       </p>
                       <div className="viz-tags-row">
-                        <span>⚡ Stress</span>
-                        <span>💤 Sleep</span>
-                        <span>🩹 Barrier support</span>
+                        {apiData?.skin_profile?.skin_analysis?.probable_triggers
+                          ?.slice(0, 3)
+                          .map((trigger, idx) => (
+                            <span key={idx}>{trigger}</span>
+                          )) || (
+                          <>
+                            <span>⚡ Stress</span>
+                            <span>💤 Sleep</span>
+                            <span>🩹 Barrier support</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -3208,19 +3354,37 @@ const MainApp = () => {
                       <div>
                         <h3 className="viz-title">AM Routine</h3>
                         <ol className="routine-list">
-                          <li>Gentle gel cleanser</li>
-                          <li>Antioxidant serum</li>
-                          <li>Oil-free moisturizer</li>
-                          <li>SPF 30+ sunscreen</li>
+                          {apiData?.routine?.am?.map((step, idx) => (
+                            <li key={idx}>
+                              <strong>{step.step_name}:</strong>{" "}
+                              {step.instruction}
+                            </li>
+                          )) || (
+                            <>
+                              <li>Gentle gel cleanser</li>
+                              <li>Antioxidant serum</li>
+                              <li>Oil-free moisturizer</li>
+                              <li>SPF 30+ sunscreen</li>
+                            </>
+                          )}
                         </ol>
                       </div>
                       <div>
                         <h3 className="viz-title">PM Routine</h3>
                         <ol className="routine-list">
-                          <li>Oil-based cleanse</li>
-                          <li>Water-based cleanse</li>
-                          <li>Niacinamide serum</li>
-                          <li>Barrier repair cream</li>
+                          {apiData?.routine?.pm?.map((step, idx) => (
+                            <li key={idx}>
+                              <strong>{step.step_name}:</strong>{" "}
+                              {step.instruction}
+                            </li>
+                          )) || (
+                            <>
+                              <li>Oil-based cleanse</li>
+                              <li>Water-based cleanse</li>
+                              <li>Niacinamide serum</li>
+                              <li>Barrier repair cream</li>
+                            </>
+                          )}
                         </ol>
                       </div>
                     </div>
@@ -3228,66 +3392,107 @@ const MainApp = () => {
 
                   {section.id === "products" && (
                     <div className="viz-card product-results-card">
-                      <h3 className="viz-title">Matched Products (Demo)</h3>
+                      <h3 className="viz-title">Matched Products</h3>
 
                       <div className="product-grid">
-                        <div className="product-card">
-                          <div className="product-image">
-                            <div className="product-thumb product-thumb-1" />
-                          </div>
-                          <div className="product-meta">
-                            <p className="product-name">
-                              CeraVe Foaming Facial Cleanser
-                            </p>
-                            <p className="product-detail">
-                              For oily / combo skin · niacinamide, ceramides,
-                              non-comedogenic.
-                            </p>
-                            <div className="product-store-row">
-                              <span>Walmart</span>
-                              <span className="product-price">$13.97</span>
-                            </div>
-                            <div className="product-store-row">
-                              <span>Amazon.ca</span>
-                              <span className="product-price">$15.49</span>
-                            </div>
-                            <span className="product-tag">
-                              Best price: Walmart
-                            </span>
-                          </div>
-                        </div>
+                        {apiData?.recommended_products
+                          ?.slice(0, 6)
+                          .map((product, idx) => {
+                            const priceData = apiData?.price_comparisons?.find(
+                              (pc) => pc.product_name === product.name
+                            );
+                            const cheapestPrice = priceData?.prices
+                              ?.filter((p) => p.price !== null)
+                              ?.sort(
+                                (a, b) =>
+                                  (a.price ?? Infinity) - (b.price ?? Infinity)
+                              )[0];
 
-                        <div className="product-card">
-                          <div className="product-image">
-                            <div className="product-thumb product-thumb-2" />
-                          </div>
-                          <div className="product-meta">
-                            <p className="product-name">
-                              La Roche-Posay Toleriane Sensitive Cream
-                            </p>
-                            <p className="product-detail">
-                              For redness &amp; barrier repair · minimalist
-                              formula, fragrance-free.
-                            </p>
-                            <div className="product-store-row">
-                              <span>Shoppers Drug Mart</span>
-                              <span className="product-price">$28.99</span>
+                            return (
+                              <div
+                                key={product.id || idx}
+                                className="product-card"
+                              >
+                                <div className="product-image">
+                                  {product.image_url ? (
+                                    <img
+                                      src={product.image_url}
+                                      alt={product.name}
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className={`product-thumb product-thumb-${
+                                        (idx % 2) + 1
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                                <div className="product-meta">
+                                  <p className="product-name">{product.name}</p>
+                                  <p className="product-detail">
+                                    {product.suitable_for?.join(", ")} ·{" "}
+                                    {product.key_ingredients
+                                      ?.slice(0, 3)
+                                      .join(", ")}
+                                    {product.fragrance_free &&
+                                      " · Fragrance-free"}
+                                  </p>
+                                  {priceData?.prices
+                                    ?.filter((p) => p.price !== null)
+                                    .map((storePrice, spIdx) => (
+                                      <div
+                                        key={spIdx}
+                                        className="product-store-row"
+                                      >
+                                        <span>{storePrice.store}</span>
+                                        <span className="product-price">
+                                          ${storePrice.price?.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {cheapestPrice && (
+                                    <span className="product-tag">
+                                      Best price: {cheapestPrice.store}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }) || (
+                          <>
+                            <div className="product-card">
+                              <div className="product-image">
+                                <div className="product-thumb product-thumb-1" />
+                              </div>
+                              <div className="product-meta">
+                                <p className="product-name">
+                                  CeraVe Foaming Facial Cleanser
+                                </p>
+                                <p className="product-detail">
+                                  For oily / combo skin · niacinamide,
+                                  ceramides, non-comedogenic.
+                                </p>
+                                <div className="product-store-row">
+                                  <span>Walmart</span>
+                                  <span className="product-price">$13.97</span>
+                                </div>
+                                <div className="product-store-row">
+                                  <span>Amazon.ca</span>
+                                  <span className="product-price">$15.49</span>
+                                </div>
+                                <span className="product-tag">
+                                  Best price: Walmart
+                                </span>
+                              </div>
                             </div>
-                            <div className="product-store-row">
-                              <span>Sephora</span>
-                              <span className="product-price">$27.00</span>
-                            </div>
-                            <span className="product-tag product-tag-alt">
-                              Best match: Sensitive skin
-                            </span>
-                          </div>
-                        </div>
+                          </>
+                        )}
                       </div>
-
-                      <p className="search-note">
-                        *In the full version, these cards would be auto-filled
-                        from live web scraping / retail APIs.
-                      </p>
                     </div>
                   )}
 
