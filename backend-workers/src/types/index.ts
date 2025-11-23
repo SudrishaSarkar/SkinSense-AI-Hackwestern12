@@ -14,17 +14,19 @@ export interface Env {
  *  SKIN ANALYSIS FROM GEMINI VISION
  * ----------------------------------------------------------- */
 
-export type Level = "none" | "mild" | "moderate" | "severe";
-
-export interface SkinAnalysis {
-  acne: Level;
-  redness: Level;
-  dryness: Level;
-  oiliness: Level;
-  texture_notes: string[]; // e.g. ["visible congestion", "flakiness"]
-  non_medical_summary: string; // textual summary of what the model sees
-  probable_triggers: string[]; // only based on visual cues
-  routine_focus: string[]; // e.g. ["barrier repair", "oil control"]
+export interface SkinAnalysisResponse {
+  skin_type: "oily" | "dry" | "combination" | "normal" | "sensitive" | "unsure";
+  ai_findings: {
+    acne: string | null;
+    redness: string | null;
+    dryness: string | null;
+    oiliness: string | null;
+    texture: string[];
+    other_observations: string[];
+  };
+  combined_interpretation: string;
+  alignment_with_user_input: string;
+  confidence: number;
 }
 
 /** -----------------------------------------------------------
@@ -176,70 +178,4 @@ export interface AnalysisHistoryEntry {
   skin_profile: SkinProfile;
   routine: Routine;
   recommended_products: string[]; // product IDs
-}
-
-/** -----------------------------------------------------------
- *  NEW: DETAILED GEMINI VISION RESPONSE (V2)
- *  This is the raw response from the AI. It will be mapped to
- *  the legacy `SkinAnalysis` interface for frontend compatibility.
- * ----------------------------------------------------------- */
-
-export type GeminiSkinAnalysisConfidence = number; // 0.0-1.0
-export type GeminiSkinType = "oily" | "dry" | "combination" | "normal" | "unsure";
-export type GeminiKeyConcern = "acne" | "redness_irritation" | "pigmentation" | "fine_lines_wrinkles" | "enlarged_pores" | "dullness" | "uneven_texture";
-export type GeminiAcneType = "comedones" | "pustules" | "cysts" | "papules";
-export type GeminiPigmentationType = "sun_spots" | "post_inflammatory_hyperpigmentation" | "melasma_like";
-export type GeminiLineSeverity = "mild" | "moderate" | "deep" | null;
-export type GeminiGeneralSeverity = "mild" | "moderate" | "severe" | null;
-export type GeminiAffectedArea = "forehead" | "cheeks" | "chin" | "nose" | "under_eyes" | "around_eyes" | "nasolabial_folds";
-
-export interface GeminiSkinAnalysisResponse {
-    confidence_score: GeminiSkinAnalysisConfidence;
-    skin_type: {
-        type: GeminiSkinType;
-        rationale: string;
-    };
-    key_concerns: GeminiKeyConcern[];
-    analysis_details: {
-        acne: {
-            has_acne: boolean;
-            severity: GeminiGeneralSeverity;
-            types: GeminiAcneType[];
-            affected_areas: GeminiAffectedArea[];
-            description: string;
-        };
-        redness_irritation: {
-            has_redness: boolean;
-            severity: GeminiGeneralSeverity;
-            affected_areas: GeminiAffectedArea[];
-            description: string;
-        };
-        pigmentation: {
-            has_pigmentation: boolean;
-            types: GeminiPigmentationType[];
-            affected_areas: GeminiAffectedArea[];
-            description: string;
-        };
-        texture_and_aging: {
-            fine_lines_wrinkles: {
-                has_lines: boolean;
-                severity: GeminiLineSeverity;
-                affected_areas: GeminiAffectedArea[];
-            };
-            enlarged_pores: {
-                has_enlarged_pores: boolean;
-                severity: GeminiGeneralSeverity;
-                affected_areas: GeminiAffectedArea[];
-            };
-            dullness_and_texture: {
-                is_dull: boolean;
-                has_uneven_texture: boolean;
-                description: string;
-            };
-        };
-    };
-    integrative_summary: {
-        summary_text: string;
-        alignment_with_user_input: string;
-    };
 }
