@@ -7,6 +7,7 @@ export interface Env {
   GEMINI_API_KEY: string;
   WALMART_API_KEY: string;
   AMAZON_RAPIDAPI_KEY: string;
+  RAPIDAPI_KEY: string;
   ELEVENLABS_API_KEY: string;
   ENVIRONMENT?: string; // "local" | "production" | undefined
 }

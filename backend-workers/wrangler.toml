@@ -10,7 +10,7 @@ GEMINI_API_KEY = ""
 WALMART_API_KEY = ""
 AMAZON_RAPIDAPI_KEY="d3cf81a7b0msha8e738098209d96p17e625jsn67044ff4299e"
 ELEVENLABS_API_KEY = ""
-ENVIRONMENT = "local"  # Set to "production" when deploying
+# ENVIRONMENT = "local"  # Commented out = production mode (uses real Gemini API)
 
 # KV Namespace for caching
 [[kv_namespaces]]
@@ -40,3 +40,5 @@ local_protocol = "http"
 # 
 # [env.staging]
 # name = "skinsense-ai-staging"
+
+router.post("/fetch-sephora", handleFetchSephora);
