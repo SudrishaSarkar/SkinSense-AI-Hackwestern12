@@ -8,6 +8,7 @@ export interface Env {
   WALMART_API_KEY: string;
   AMAZON_RAPIDAPI_KEY: string;
   ELEVENLABS_API_KEY: string;
+  ENVIRONMENT?: string; // "local" | "production" | undefined
 }
 
 /** -----------------------------------------------------------
@@ -122,10 +123,11 @@ export interface CyclePattern {
  * ----------------------------------------------------------- */
 
 export interface StorePrice {
-  store: "Walmart" | "Shoppers" | "AmazonCA" | "SephoraCA";
-  price: number | null; // null if failed to fetch
+  store: string;
+  price: number | null;
   url: string;
-  last_checked: number; // timestamp (ms)
+  image?: string | null;
+  last_checked: number;
 }
 
 export interface PriceComparisonResult {

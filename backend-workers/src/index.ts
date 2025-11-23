@@ -5,6 +5,7 @@ import { handleCycleInsights } from "./routes/cycleInsights";
 import { handleRecommendProducts } from "./routes/recommendProducts";
 import { handlePriceCompare } from "./routes/priceCompare";
 import { handleInvestment } from "./routes/investment";
+import { handleRecommendationBundle } from "./routes/recommendationBundle";
 
 export default {
   async fetch(
@@ -16,6 +17,39 @@ export default {
     const { pathname } = url;
 
     try {
+      // Root route - API info
+      if (pathname === "/" && request.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            message: "SkinSense AI Backend API",
+            version: "1.0.0",
+            endpoints: {
+              "POST /api/analyze-skin": "Analyze skin from image",
+              "POST /api/cycle-insights": "Get cycle-based insights",
+              "POST /api/recommend-products": "Get product recommendations",
+              "GET /api/price-compare?product=NAME":
+                "Compare prices across stores",
+              "POST /api/investment": "Calculate investment projection",
+              "POST /api/recommendation-bundle":
+                "Get complete recommendation bundle",
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Test route
+      if (pathname === "/test" && request.method === "GET") {
+        return new Response(
+          JSON.stringify({ status: "ok", message: "Worker is running!" }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       if (pathname === "/api/analyze-skin" && request.method === "POST") {
         return handleAnalyzeSkin(request, env);
       }
@@ -36,13 +70,35 @@ export default {
         return handleInvestment(request, env);
       }
 
-      return new Response("Not found", { status: 404 });
+      // ✅ New all-in-one endpoint
+      if (
+        pathname === "/api/recommendation-bundle" &&
+        request.method === "POST"
+      ) {
+        return handleRecommendationBundle(request, env);
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: "Not found",
+          path: pathname,
+          method: request.method,
+          hint: "Check / for available endpoints",
+        }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     } catch (err: any) {
       console.error(err);
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: err.message ?? "Internal error" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
   },
 };
