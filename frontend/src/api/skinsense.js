@@ -29,6 +29,28 @@ export function fileToBase64(file) {
 }
 
 /**
+ * Convert dataUrl (from webcam or file upload) to base64 format
+ * Returns { base64: string, mimeType: string }
+ */
+export function dataUrlToBase64(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== "string") {
+    throw new Error("Invalid dataUrl provided");
+  }
+  
+  // Split dataUrl: "data:image/jpeg;base64,actualBase64Data"
+  const [header, base64] = dataUrl.split(",");
+  if (!base64) {
+    throw new Error("Invalid dataUrl format - missing base64 data");
+  }
+  
+  // Extract mime type from header: "data:image/jpeg;base64"
+  const mimeMatch = header.match(/data:([^;]+)/);
+  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  
+  return { base64, mimeType };
+}
+
+/**
  * Analyze skin image using Gemini Vision API (frontend)
  * @param {string} base64 - Base64 encoded image (without data URL prefix)
  * @param {string} mimeType - MIME type of the image

@@ -1,9 +1,12 @@
-
-
 // frontend/src/App.jsx
 
 import React, { useEffect, useRef, useState } from "react";
 import WebcamCapture from "./components/WebcamCapture"; // Import WebcamCapture
+import {
+  generateRecommendationBundle,
+  dataUrlToBase64,
+  fileToBase64,
+} from "./api/skinsense";
 
 /* =======================
    STEP METADATA (AFTER GENERATE)
@@ -266,7 +269,9 @@ const MainApp = () => {
 
   // Add state to store results from the backend
   const [analysisResult, setAnalysisResult] = useState(null);
-  
+  const [apiData, setApiData] = useState(null);
+  const [apiError, setApiError] = useState(null);
+
   const [userFilters, setUserFilters] = useState({
     gender: "",
     ageRange: "",
@@ -352,7 +357,7 @@ const MainApp = () => {
     const file = e.target.files && e.target.files[0];
     if (file) {
       setImageConfirmed(false); // Reset confirmation if a new image is chosen
-      setLastCaptureMethod('upload'); // Set capture method
+      setLastCaptureMethod("upload"); // Set capture method
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageData(reader.result);
@@ -363,7 +368,7 @@ const MainApp = () => {
 
   const handleWebcamCapture = (dataUrl) => {
     setImageConfirmed(false);
-    setLastCaptureMethod('webcam');
+    setLastCaptureMethod("webcam");
     setImageData(dataUrl);
     setIsWebcamActive(false); // Hide webcam once image is captured
   };
@@ -377,39 +382,43 @@ const MainApp = () => {
     setImageConfirmed(false);
     // If the last action was taking a webcam photo, re-open the webcam.
     // Otherwise, trigger the file upload dialog.
-    if (lastCaptureMethod === 'webcam') {
+    if (lastCaptureMethod === "webcam") {
       setIsWebcamActive(true);
     } else {
       handleUploadClick();
     }
   };
 
-
   const handleUseThis = () => {
     if (imageData) {
       setImageConfirmed(true);
       // Check if user info is already filled to enable the scan button
       const { gender, ageRange, oily, dry, intensity } = userFilters;
-      const filled = gender && ageRange && oily !== null && dry !== null && intensity !== null;
+      const filled =
+        gender &&
+        ageRange &&
+        oily !== null &&
+        dry !== null &&
+        intensity !== null;
       setHasUserInfo(Boolean(filled));
     }
   };
 
-//   const handleGeneratePlan = () => {
-//   if (!canStartFlow || isGenerating) return;
+  //   const handleGeneratePlan = () => {
+  //   if (!canStartFlow || isGenerating) return;
 
-//   setIsGenerating(true);
+  //   setIsGenerating(true);
 
-//   // Fake loading delay (so spinner is visible)
-//   setTimeout(() => {
-//     setHasGeneratedPlan(true);
-//     setIsGenerating(false);
+  //   // Fake loading delay (so spinner is visible)
+  //   setTimeout(() => {
+  //     setHasGeneratedPlan(true);
+  //     setIsGenerating(false);
 
-//     setTimeout(() => {
-//       handleScrollTo("analysis");
-//     }, 60);
-//   }, 1200);
-// };
+  //     setTimeout(() => {
+  //       handleScrollTo("analysis");
+  //     }, 60);
+  //   }, 1200);
+  // };
 
   // // 3. Update handleGeneratePlan to send the image to the backend
   // const handleGeneratePlan = async () => {
@@ -448,44 +457,58 @@ const MainApp = () => {
   //   }
   // };
 
-
-
-    // Replace BOTH old handleGeneratePlan definitions with just this one:
   const handleGeneratePlan = async () => {
-    if (!canStartFlow || isGenerating) return;
+    if (!canStartFlow || isGenerating || !imageData) return;
 
     setIsGenerating(true);
+    setApiError(null);
 
     try {
-      // Optional: if you still want a minimum spinner time, uncomment:
-      // await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      const response = await fetch("http://localhost:5000/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image: imageData, filters: userFilters }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Convert imageData (dataUrl from webcam or file) to base64 format
+      let imageBase64;
+      if (typeof imageData === "string" && imageData.startsWith("data:")) {
+        // It's a dataUrl (from webcam or file upload)
+        imageBase64 = dataUrlToBase64(imageData);
+      } else {
+        throw new Error("Invalid image data format");
       }
 
-      const results = await response.json();
-      setAnalysisResult(results);
+      // Map frontend form data to backend lifestyle format
+      const lifestyle = {
+        cycle_phase: "unknown", // Default, can be enhanced later
+        sleep_hours: 7, // Default
+        hydration_cups: 6, // Default
+        stress_level:
+          userFilters.intensity !== null
+            ? Math.min(5, Math.max(1, userFilters.intensity + 1)) // Map 0-4 to 1-5
+            : 3,
+        mood: 3, // Default
+      };
+
+      // Call the new API that uses frontend Gemini calls
+      const response = await generateRecommendationBundle(
+        imageBase64, // { base64, mimeType } object
+        lifestyle
+      );
+
+      // Store the response
+      setApiData(response);
+      setAnalysisResult(response);
       setHasGeneratedPlan(true);
 
-      // Scroll to analysis section after we have results
-      setTimeout(() => handleScrollTo("analysis"), 100);
+      // Scroll to results
+      setTimeout(() => {
+        handleScrollTo("analysis");
+      }, 100);
     } catch (error) {
-      console.error("Failed to get analysis from backend:", error);
-      // TODO: show a user-friendly error message in the UI if you want
+      console.error("Error generating plan:", error);
+      const errorMessage =
+        error.message || "Failed to generate skincare plan. Please try again.";
+      setApiError(errorMessage);
     } finally {
       setIsGenerating(false);
     }
   };
-
 
   return (
     <div className="app">
@@ -526,17 +549,16 @@ const MainApp = () => {
           ref={(el) => (sectionRefs.current["landing"] = el)}
         >
           <div className="landing-inner">
-            
             <img
               src="/logo.png"
               alt="SkinSense Logo"
               className="landing-logo"
             />
             <h1 className="landing-tag">Meet SkinSense</h1>
-            <h1 className="landing-title">  
-            </h1>
+            <h1 className="landing-title"></h1>
             <p className="landing-subtitle">
-            Your personal AI skin expert that knows what your skin needs before you do.
+              Your personal AI skin expert that knows what your skin needs
+              before you do.
             </p>
 
             <ul className="landing-points">
@@ -567,7 +589,7 @@ const MainApp = () => {
                 Add a clear photo and a few quick details. We’ll use this to
                 build your personalized skin care plan.
               </p>
-  
+
               <div className="capture-block">
                 {/* This container will hold the image selection and preview */}
                 <div className="capture-flex-container">
@@ -581,25 +603,39 @@ const MainApp = () => {
                     ) : imageData ? (
                       <div className="image-preview-box">
                         {/* The image tag now has inline styles for dynamic sizing */}
-                        <img 
-                          src={imageData} 
-                          alt="Selected skin" 
-                          className="preview-image" 
-                          style={{ maxWidth: '100%', maxHeight: '300px', height: 'auto', width: 'auto' }} />
+                        <img
+                          src={imageData}
+                          alt="Selected skin"
+                          className="preview-image"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "300px",
+                            height: "auto",
+                            width: "auto",
+                          }}
+                        />
                         {!imageConfirmed && (
                           <div className="preview-actions">
-                            <button type="button" className="secondary-btn" onClick={handleRetake}>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={handleRetake}
+                            >
                               Retake
                             </button>
-                            <button type="button" className="primary-btn" onClick={handleUseThis}>
+                            <button
+                              type="button"
+                              className="primary-btn"
+                              onClick={handleUseThis}
+                            >
                               Use This!
                             </button>
                           </div>
                         )}
                         {imageConfirmed && (
-                           <div className="preview-confirmed-badge">
-                             ✔ Image Confirmed
-                           </div>
+                          <div className="preview-confirmed-badge">
+                            ✔ Image Confirmed
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -628,8 +664,8 @@ const MainApp = () => {
                       </div>
                     )}
                   </div>
-                </div> {/* End of capture-flex-container */}
-
+                </div>{" "}
+                {/* End of capture-flex-container */}
                 {/* User filters form */}
                 <div className="user-form">
                   <p className="form-caption">
@@ -688,8 +724,8 @@ const MainApp = () => {
                     </div>
                   </div>
                 </div>
-
-/*THIS IS WHERE MRIDA AND ATIKA'S CODE IS. IF ANYTHING NEEDS TO BE FIXED DO THIS*/
+                /*THIS IS WHERE MRIDA AND ATIKA'S CODE IS. IF ANYTHING NEEDS TO
+                BE FIXED DO THIS*/
                 {/* "Start Scan" button appears only after image is confirmed and form is filled */}
                 {imageConfirmed && (
                   <button
@@ -701,7 +737,9 @@ const MainApp = () => {
                     disabled={!canStartFlow || isGenerating}
                     onClick={handleGeneratePlan}
                   >
-                    {canStartFlow ? "Start Scan" : "Please fill out your profile"}
+                    {canStartFlow
+                      ? "Start Scan"
+                      : "Please fill out your profile"}
                   </button>
                 )}
                 {/* Generate plan button */}
@@ -716,7 +754,20 @@ const MainApp = () => {
                 >
                   Generate My Personalized Skin Care Routine
                 </button>
-
+                {apiError && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem",
+                      background: "#fee",
+                      color: "#c33",
+                      borderRadius: "8px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {apiError}
+                  </div>
+                )}
                 {isGenerating && (
                   <div className="generate-spinner-wrap">
                     <div className="circle-spinner" />
