@@ -2795,6 +2795,8 @@ const MainApp = () => {
 
   const sectionRefs = useRef({});
   const fileInputRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
 
   const [userFilters, setUserFilters] = useState({
     gender: "",
@@ -2885,14 +2887,31 @@ const MainApp = () => {
     }
   };
 
+  // const handleGeneratePlan = () => {
+  //   if (!canStartFlow) return;
+  //   setHasGeneratedPlan(true);
+  //   // scroll to Step 1 (analysis)
+  //   setTimeout(() => {
+  //     handleScrollTo("analysis");
+  //   }, 50);
+  // };
+
   const handleGeneratePlan = () => {
-    if (!canStartFlow) return;
+  if (!canStartFlow || isGenerating) return;
+
+  setIsGenerating(true);
+
+  // Fake loading delay (so spinner is visible)
+  setTimeout(() => {
     setHasGeneratedPlan(true);
-    // scroll to Step 1 (analysis)
+    setIsGenerating(false);
+
     setTimeout(() => {
       handleScrollTo("analysis");
-    }, 50);
-  };
+    }, 60);
+  }, 1200);
+};
+
 
   return (
     <div className="app">
@@ -3091,6 +3110,13 @@ const MainApp = () => {
                 >
                   Generate my skin care plan
                 </button>
+
+                {isGenerating && (
+                  <div className="generate-spinner-wrap">
+                    <div className="circle-spinner" />
+                    <p className="spinner-label">Preparing your results…</p>
+                  </div>
+                )}
 
                 <div className="hero-pills">
                   <span className="pill">Non-medical insights</span>
