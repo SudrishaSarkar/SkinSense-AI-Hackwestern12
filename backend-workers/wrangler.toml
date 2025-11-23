@@ -8,8 +8,9 @@ compatibility_flags = ["nodejs_compat"]
 # These will be set via wrangler secret put or in Cloudflare dashboard
 GEMINI_API_KEY = ""
 WALMART_API_KEY = ""
-AMAZON_RAPIDAPI_KEY = ""
+AMAZON_RAPIDAPI_KEY="d3cf81a7b0msha8e738098209d96p17e625jsn67044ff4299e"
 ELEVENLABS_API_KEY = ""
+ENVIRONMENT = "local"  # Set to "production" when deploying
 
 # KV Namespace for caching
 [[kv_namespaces]]

@@ -1,0 +1,75 @@
+[
+  {
+    "id": "1",
+    "name": "CeraVe Foaming Facial Cleanser",
+    "brand": "CeraVe",
+    "category": "cleanser",
+    "key_ingredients": ["niacinamide", "ceramides"],
+    "ingredients_full": "Aqua, Glycerin, Niacinamide, Ceramides, Hyaluronic Acid",
+    "suitable_for": ["oily", "acne-prone", "sensitive"],
+    "fragrance_free": true,
+    "comedogenic_rating": 0,
+    "price_estimate": 15
+  },
+  {
+    "id": "2",
+    "name": "La Roche-Posay Toleriane Sensitive Cream",
+    "brand": "La Roche-Posay",
+    "category": "moisturizer",
+    "key_ingredients": ["ceramides", "niacinamide"],
+    "ingredients_full": "Aqua, Glycerin, Ceramides, Niacinamide, Squalane",
+    "suitable_for": ["sensitive", "dry"],
+    "fragrance_free": true,
+    "comedogenic_rating": 0,
+    "price_estimate": 28
+  },
+  {
+    "id": "3",
+    "name": "The Ordinary Niacinamide 10% + Zinc 1%",
+    "brand": "The Ordinary",
+    "category": "serum",
+    "key_ingredients": ["niacinamide", "zinc"],
+    "ingredients_full": "Aqua, Niacinamide, Zinc PCA",
+    "suitable_for": ["oily", "acne-prone"],
+    "fragrance_free": true,
+    "comedogenic_rating": 0,
+    "price_estimate": 7
+  },
+  {
+    "id": "4",
+    "name": "CeraVe Daily Moisturizing Lotion",
+    "brand": "CeraVe",
+    "category": "moisturizer",
+    "key_ingredients": ["ceramides", "hyaluronic acid"],
+    "ingredients_full": "Aqua, Glycerin, Ceramides, Hyaluronic Acid",
+    "suitable_for": ["dry", "sensitive"],
+    "fragrance_free": true,
+    "comedogenic_rating": 0,
+    "price_estimate": 18
+  },
+  {
+    "id": "5",
+    "name": "Neutrogena Ultra Sheer Dry-Touch Sunscreen SPF 50",
+    "brand": "Neutrogena",
+    "category": "sunscreen",
+    "key_ingredients": ["zinc oxide", "avobenzone"],
+    "ingredients_full": "Aqua, Zinc Oxide, Avobenzone, Glycerin",
+    "suitable_for": ["oily", "sensitive"],
+    "fragrance_free": false,
+    "comedogenic_rating": 1,
+    "price_estimate": 12
+  },
+  {
+    "id": "6",
+    "name": "Paula's Choice 2% BHA Liquid Exfoliant",
+    "brand": "Paula's Choice",
+    "category": "exfoliant",
+    "key_ingredients": ["salicylic acid"],
+    "ingredients_full": "Aqua, Salicylic Acid, Glycerin, Green Tea Extract",
+    "suitable_for": ["oily", "acne-prone"],
+    "fragrance_free": true,
+    "comedogenic_rating": 0,
+    "price_estimate": 35
+  }
+]
+

@@ -1,0 +1,57 @@
+[
+  {
+    "name": "niacinamide",
+    "category": "active",
+    "functions": ["oil control", "pore refinement", "barrier support"],
+    "comedogenicity": 0,
+    "irritant": false,
+    "fragrance": false,
+    "acne_trigger": false
+  },
+  {
+    "name": "hyaluronic acid",
+    "category": "humectant",
+    "functions": ["hydration", "moisture retention"],
+    "comedogenicity": 0,
+    "irritant": false,
+    "fragrance": false,
+    "acne_trigger": false
+  },
+  {
+    "name": "ceramides",
+    "category": "barrier repair",
+    "functions": ["barrier repair", "moisture retention"],
+    "comedogenicity": 0,
+    "irritant": false,
+    "fragrance": false,
+    "acne_trigger": false
+  },
+  {
+    "name": "salicylic acid",
+    "category": "exfoliant",
+    "functions": ["exfoliation", "pore unclogging"],
+    "comedogenicity": 0,
+    "irritant": true,
+    "fragrance": false,
+    "acne_trigger": false
+  },
+  {
+    "name": "fragrance",
+    "category": "additive",
+    "functions": ["scent"],
+    "comedogenicity": 2,
+    "irritant": true,
+    "fragrance": true,
+    "acne_trigger": true
+  },
+  {
+    "name": "centella asiatica",
+    "category": "soothing",
+    "functions": ["soothing", "anti-inflammatory"],
+    "comedogenicity": 0,
+    "irritant": false,
+    "fragrance": false,
+    "acne_trigger": false
+  }
+]
+

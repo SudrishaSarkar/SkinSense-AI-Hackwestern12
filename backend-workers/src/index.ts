@@ -9,21 +9,59 @@ export interface Env {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     const url = new URL(request.url);
-    const pathname = url.pathname;
+    const { pathname } = url;
 
-    // Test KV cache route
-    if (pathname === "/test-cache") {
-      await env.CACHE.put("hello", "world");
-      const result = await env.CACHE.get("hello");
-      return new Response(`CACHE works! Value: ${result}`);
-    }
+    try {
+      // Root route - API info
+      if (pathname === "/" && request.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            message: "SkinSense AI Backend API",
+            version: "1.0.0",
+            endpoints: {
+              "POST /api/analyze-skin": "Analyze skin from image",
+              "POST /api/cycle-insights": "Get cycle-based insights",
+              "POST /api/recommend-products": "Get product recommendations",
+              "GET /api/price-compare?product=NAME":
+                "Compare prices across stores",
+              "POST /api/investment": "Calculate investment projection",
+              "POST /api/recommendation-bundle":
+                "Get complete recommendation bundle",
+            },
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
-    // Default route
-    return new Response("Worker is running!");
-  }
-};
+      // Test route
+      if (pathname === "/test" && request.method === "GET") {
+        return new Response(
+          JSON.stringify({ status: "ok", message: "Worker is running!" }),
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (pathname === "/api/analyze-skin" && request.method === "POST") {
+        return handleAnalyzeSkin(request, env);
+      }
+
+      if (pathname === "/api/cycle-insights" && request.method === "POST") {
+        return handleCycleInsights(request, env);
+      }
+
+      if (pathname === "/api/recommend-products" && request.method === "POST") {
+        return handleRecommendProducts(request, env);
+      }
 
 
 
