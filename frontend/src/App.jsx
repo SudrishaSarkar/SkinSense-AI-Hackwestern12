@@ -1,6 +1,7 @@
 
 
 // frontend/src/App.jsx
+
 import React, { useEffect, useRef, useState } from "react";
 import WebcamCapture from "./components/WebcamCapture"; // Import WebcamCapture
 
@@ -12,16 +13,14 @@ const SECTIONS = [
   {
     id: "analysis",
     label: "Step 1",
-    title: "AI Skin Analysis + Story",
-    accent: "Map + Human Summary",
+    title: "AI Skin Analysis",
+    accent: "Map + Summary",
     blurb:
-      "We scan your selfie for acne, redness, oiliness and dryness, then turn that into a clear explanation of how your skin is behaving today.",
+      "Let's you see how affected your skin looks in the image you provided and gives you a skin map.",
     bullets: [
-      "Acne, redness, oiliness & dryness detection",
-      "Texture & pore visibility insights",
-      "Barrier health patterns (non-medical)",
-      "Plain-language explanation you can actually use",
-      "Highlights probable lifestyle triggers like stress & sleep",
+      "Shows targetted problem like texture, redness or pore visibility etc",
+      "A brief summary of the active issues highlighting probable lifestyle triggers like stress & sleep",
+      "Barrier health patterns",
     ],
     tag: "Insight Layer",
   },
@@ -512,10 +511,6 @@ const MainApp = () => {
               </button>
             ))}
         </nav>
-
-        <button className="nav-cta" onClick={() => handleScrollTo("capture")}>
-          Start Scan
-        </button>
       </header>
 
       {/* Scrollable main content */}
@@ -529,37 +524,24 @@ const MainApp = () => {
           ref={(el) => (sectionRefs.current["landing"] = el)}
         >
           <div className="landing-inner">
-            <p className="landing-tag">Welcome</p>
-            <h1 className="landing-title">
-              Your skin, decoded in under a minute.
+            
+            <img
+              src="/logo.png"
+              alt="SkinSense Logo"
+              className="landing-logo"
+            />
+            <h1 className="landing-tag">Meet SkinSense</h1>
+            <h1 className="landing-title">  
             </h1>
             <p className="landing-subtitle">
-              SkinSense AI turns a simple selfie into a full story: mapped
-              concerns, personalized routines, product matches, and where to buy
-              — all without medical language or overwhelm.
+            Your personal AI skin expert that knows what your skin needs before you do.
             </p>
 
             <ul className="landing-points">
-              <li>Upload a selfie + quick skin profile</li>
-              <li>See your AI skin map &amp; plain-language summary</li>
+              <li>Upload a selfie and get a quick analysis of your skin</li>
+              <li>See your AI skin map &amp; with a summary</li>
               <li>Get AM/PM routines, products, and nearby stores</li>
             </ul>
-
-            <button
-              type="button"
-              className="primary-btn landing-cta"
-              onClick={() => handleScrollTo("capture")}
-            >
-              Start my scan
-            </button>
-
-            <button
-              type="button"
-              className="landing-scroll-hint"
-              onClick={() => handleScrollTo("capture")}
-            >
-              Scroll to begin ↓
-            </button>
           </div>
         </section>
 
@@ -709,6 +691,7 @@ const MainApp = () => {
                   </div>
                 </div>
 
+/*THIS IS WHERE MRIDA AND ATIKA'S CODE IS. IF ANYTHING NEEDS TO BE FIXED DO THIS*/
                 {/* "Start Scan" button appears only after image is confirmed and form is filled */}
                 {imageConfirmed && (
                   <button
@@ -723,6 +706,18 @@ const MainApp = () => {
                     {canStartFlow ? "Start Scan" : "Please fill out your profile"}
                   </button>
                 )}
+                {/* Generate plan button */}
+                <button
+                  type="button"
+                  className={
+                    "generate-btn" +
+                    (canStartFlow ? " generate-btn-active" : "")
+                  }
+                  disabled={!canStartFlow}
+                  onClick={handleGeneratePlan}
+                >
+                  Generate My Personalized Skin Care Routine
+                </button>
 
                 {isGenerating && (
                   <div className="generate-spinner-wrap">
@@ -730,12 +725,6 @@ const MainApp = () => {
                     <p className="spinner-label">Preparing your results…</p>
                   </div>
                 )}
-
-                <div className="hero-pills">
-                  <span className="pill">Non-medical insights</span>
-                  <span className="pill">Ingredient-safe routines</span>
-                  <span className="pill">Price-aware suggestions</span>
-                </div>
               </div>
             </div>
           </div>
@@ -761,10 +750,11 @@ const MainApp = () => {
                   <p className="floating-label">
                     {section.label} · {section.tag}
                   </p>
-                  <h2 className="section-title">
-                    {section.title}{" "}
-                    <span className="section-accent">{section.accent}</span>
-                  </h2>
+                  <h2 className="section-title">{section.title}</h2>
+
+                  {section.accent && (
+                    <div className="section-accent-pill">{section.accent}</div>
+                  )}
                   <p className="section-blurb">{section.blurb}</p>
 
                   <ul className="bullet-list">
@@ -841,7 +831,7 @@ const MainApp = () => {
 
                   {section.id === "products" && (
                     <div className="viz-card product-results-card">
-                      <h3 className="viz-title">Matched Products (Demo)</h3>
+                      <h3 className="viz-title">Matched Products</h3>
 
                       <div className="product-grid">
                         <div className="product-card">

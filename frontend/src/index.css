@@ -222,7 +222,7 @@ span {
   text-align: center;
 }
 
-.landing-tag {
+/* .landing-tag {
   display: inline-flex;
   padding: 6px 14px;
   border-radius: 999px;
@@ -233,7 +233,30 @@ span {
   letter-spacing: 0.14em;
   color: var(--deep-green);
   font-weight: 600;
+} */
+
+
+/* LANDING TAG – big clean heading, no capsule */
+
+.landing-tag {
+  margin: 0 0 12px;
+  font-size: clamp(45px, 4vw, 42px);  /* nice big text */
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--deep-green);
+
+  /* remove old pill look */
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
+
+
+
+
 
 .landing-title {
   margin: 18px 0 10px;
@@ -243,7 +266,7 @@ span {
 
 .landing-subtitle {
   margin: 0 0 16px;
-  font-size: 15px;
+  font-size: 30px;
   color: var(--text-muted);
   line-height: 1.6;
 }
@@ -253,7 +276,7 @@ span {
   padding-left: 0;
   list-style: none;
   max-width: 520px;
-  font-size: 13px;
+  font-size: 20px;
   color: var(--text-main);
   text-align: left;
 }
@@ -267,12 +290,26 @@ span {
   margin-top: 6px;
 }
 
-.landing-scroll-hint {
+/* .landing-scroll-hint {
   margin-top: 12px;
   border: none;
   background: none;
   font-size: 13px;
   color: var(--deep-green);
+  cursor: pointer;
+} */
+
+
+
+.landing-scroll-hint {
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #40523B; /* your theme green */
   cursor: pointer;
 }
 
@@ -300,6 +337,7 @@ span {
   line-height: 1.1;
   margin: 10px 0 18px;
   font-weight: 700;
+  color: #2e3c26;
 }
 
 .hero-highlight {
@@ -374,6 +412,17 @@ span {
   margin: 0 0 10px;
   font-weight: 700;
 }
+
+.section-accent-pill {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: #f5f0dd; /* match your existing pill color */
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 
 .section-accent {
   display: inline-block;
@@ -717,7 +766,7 @@ span {
   max-width: 380px;
   background: var(--bg-card);
   border-radius: 24px;
-  padding: 14px 16px 40px;
+  padding: 20px 20px 40px;
   border: 1px solid var(--border-soft);
   box-shadow: 0 18px 40px rgba(26, 32, 20, 0.16);
 
@@ -731,7 +780,7 @@ span {
 
 /* keep floating label tidy */
 .section.feature .section-text .floating-label {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* RIGHT: viz card container (overlapping) */
@@ -807,7 +856,7 @@ span {
   max-width: 380px;
   background: var(--bg-card);
   border-radius: 24px;
-  padding: 10px 15px 50px;
+  padding: 16px 80px 40px 20px;
   border: 1px solid var(--border-soft);
   box-shadow: 0 18px 40px rgba(26, 32, 20, 0.16);
 }
