@@ -1239,3 +1239,117 @@ span {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+.secondary-btn {
+  border-radius: var(--radius-pill);
+  padding: 8px 18px;
+  font-size: 13px;
+  border: 1px solid var(--deep-green);
+  background: transparent;
+  color: var(--deep-green);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.secondary-btn:hover {
+  background: rgba(53, 74, 47, 0.1);
+}
+
+.primary-btn {
+  border-radius: var(--radius-pill);
+  padding: 8px 18px;
+  font-size: 13px;
+  border: none;
+  background: #5c724a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  font-weight: 600;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 40px rgba(32, 42, 28, 0.45);
+}
+
+.image-preview-box {
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 32px; /* Matched to viz-card */
+  padding: 28px 32px; /* Matched to viz-card */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px; /* Adjusted gap */
+  box-shadow: var(--shadow-soft);
+  flex: 1; /* Allow it to grow */
+  max-width: 400px; /* Limit max width */
+}
+
+.webcam-capture-panel {
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 32px;
+  padding: 28px 32px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.webcam-video {
+  width: 100%;
+  max-width: 300px; /* Constrain video width */
+  height: auto;
+  border-radius: 16px;
+  background-color: var(--deep-green); /* Placeholder background */
+}
+
+.webcam-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* New styles for capture section */
+.capture-flex-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  gap: 24px; /* Gap between image/webcam and form */
+  justify-content: center; /* Center content when not enough space for two columns */
+  width: 100%;
+  align-items: flex-start; /* Align items to the top */
+}
+
+.capture-main-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  flex: 1; /* Allow to grow */
+  min-width: 300px; /* Minimum width for the panel */
+}
+
+.capture-actions {
+  display: flex;
+  flex-direction: column; /* Stack buttons vertically */
+  gap: 12px;
+  width: 100%;
+  max-width: 300px; /* Constrain button width */
+}
+
+.preview-btn-retake {
+  /* This is now handled by .secondary-btn */
+  /* Keep this class if there are specific overrides, otherwise can remove */
+}
+
+.preview-btn-use {
+  /* This is now handled by .primary-btn */
+  /* Keep this class if there are specific overrides, otherwise can remove */
+}
