@@ -28,6 +28,22 @@ export interface SkinAnalysis {
   routine_focus: string[]; // e.g. ["barrier repair", "oil control"]
 }
 
+export interface SkinAnalysisResponse {
+  skin_type: "oily" | "dry" | "combination" | "normal" | "sensitive" | "unsure";
+  ai_findings: {
+    acne: string | null;
+    redness: string | null;
+    dryness: string | null;
+    oiliness: string | null;
+    texture: string[];
+    other_observations: string[];
+  };
+  combined_interpretation: string;
+  alignment_with_user_input: string;
+  confidence: number;
+}
+
+
 /** -----------------------------------------------------------
  *  CYCLE + LIFESTYLE INPUT
  * ----------------------------------------------------------- */

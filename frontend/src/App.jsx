@@ -1,6 +1,9 @@
+
+
 // frontend/src/App.jsx
 
 import React, { useEffect, useRef, useState } from "react";
+import WebcamCapture from "./components/WebcamCapture"; // Import WebcamCapture
 
 /* =======================
    STEP METADATA (AFTER GENERATE)
@@ -246,13 +249,22 @@ const LikertQuestion = ({ label, value, onChange }) => {
 
 const MainApp = () => {
   const [activeSection, setActiveSection] = useState("landing");
-  const [hasGeneratedPlan, setHasGeneratedPlan] = useState(false);
-
   const sectionRefs = useRef({});
   const fileInputRef = useRef(null);
+
+  // State for generation flow
+  const [hasGeneratedPlan, setHasGeneratedPlan] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // State for image handling
+  const [imageData, setImageData] = useState(null);
+  const [imageConfirmed, setImageConfirmed] = useState(false);
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const [lastCaptureMethod, setLastCaptureMethod] = useState(null);
 
+  // Add state to store results from the backend
+  const [analysisResult, setAnalysisResult] = useState(null);
+  
   const [userFilters, setUserFilters] = useState({
     gender: "",
     ageRange: "",
@@ -261,10 +273,9 @@ const MainApp = () => {
     intensity: null, // 0–4 Likert
   });
 
-  const [hasUploadedImage, setHasUploadedImage] = useState(false);
   const [hasUserInfo, setHasUserInfo] = useState(false);
 
-  const canStartFlow = hasUploadedImage && hasUserInfo;
+  const canStartFlow = imageConfirmed && hasUserInfo;
 
   // observe sections for active nav highlight
   useEffect(() => {
@@ -338,34 +349,140 @@ const MainApp = () => {
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
-      setHasUploadedImage(true);
+      setImageConfirmed(false); // Reset confirmation if a new image is chosen
+      setLastCaptureMethod('upload'); // Set capture method
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageData(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // const handleGeneratePlan = () => {
-  //   if (!canStartFlow) return;
-  //   setHasGeneratedPlan(true);
-  //   // scroll to Step 1 (analysis)
-  //   setTimeout(() => {
-  //     handleScrollTo("analysis");
-  //   }, 50);
+  const handleWebcamCapture = (dataUrl) => {
+    setImageConfirmed(false);
+    setLastCaptureMethod('webcam');
+    setImageData(dataUrl);
+    setIsWebcamActive(false); // Hide webcam once image is captured
+  };
+
+  const handleWebcamCancel = () => {
+    setIsWebcamActive(false); // Hide webcam if user cancels
+  };
+
+  const handleRetake = () => {
+    setImageData(null);
+    setImageConfirmed(false);
+    // If the last action was taking a webcam photo, re-open the webcam.
+    // Otherwise, trigger the file upload dialog.
+    if (lastCaptureMethod === 'webcam') {
+      setIsWebcamActive(true);
+    } else {
+      handleUploadClick();
+    }
+  };
+
+
+  const handleUseThis = () => {
+    if (imageData) {
+      setImageConfirmed(true);
+      // Check if user info is already filled to enable the scan button
+      const { gender, ageRange, oily, dry, intensity } = userFilters;
+      const filled = gender && ageRange && oily !== null && dry !== null && intensity !== null;
+      setHasUserInfo(Boolean(filled));
+    }
+  };
+
+//   const handleGeneratePlan = () => {
+//   if (!canStartFlow || isGenerating) return;
+
+//   setIsGenerating(true);
+
+//   // Fake loading delay (so spinner is visible)
+//   setTimeout(() => {
+//     setHasGeneratedPlan(true);
+//     setIsGenerating(false);
+
+//     setTimeout(() => {
+//       handleScrollTo("analysis");
+//     }, 60);
+//   }, 1200);
+// };
+
+  // // 3. Update handleGeneratePlan to send the image to the backend
+  // const handleGeneratePlan = async () => {
+  //   if (!canStartFlow || isGenerating) return;
+
+  //   setIsGenerating(true);
+
+  //   try {
+  //     // The URL should match your backend server and endpoint
+  //     const response = await fetch("http://localhost:5000/api/analyze", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ image: imageData, filters: userFilters }), // Send image and filters
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! status: ${response.status}`);
+  //     }
+
+  //     const results = await response.json();
+  //     setAnalysisResult(results); // Save the analysis results
+  //     console.log("Backend Analysis Results:", results);
+
+  //     // Once we have results, show the next sections
+  //     setHasGeneratedPlan(true);
+
+  //     // Scroll to the analysis section
+  //     setTimeout(() => handleScrollTo("analysis"), 100);
+  //   } catch (error) {
+  //     console.error("Failed to get analysis from backend:", error);
+  //     // You could show an error message to the user here
+  //   } finally {
+  //     setIsGenerating(false);
+  //   }
   // };
 
-  const handleGeneratePlan = () => {
-  if (!canStartFlow || isGenerating) return;
 
-  setIsGenerating(true);
 
-  // Fake loading delay (so spinner is visible)
-  setTimeout(() => {
-    setHasGeneratedPlan(true);
-    setIsGenerating(false);
+    // Replace BOTH old handleGeneratePlan definitions with just this one:
+  const handleGeneratePlan = async () => {
+    if (!canStartFlow || isGenerating) return;
 
-    setTimeout(() => {
-      handleScrollTo("analysis");
-    }, 60);
-  }, 1200);
-};
+    setIsGenerating(true);
+
+    try {
+      // Optional: if you still want a minimum spinner time, uncomment:
+      // await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image: imageData, filters: userFilters }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const results = await response.json();
+      setAnalysisResult(results);
+      setHasGeneratedPlan(true);
+
+      // Scroll to analysis section after we have results
+      setTimeout(() => handleScrollTo("analysis"), 100);
+    } catch (error) {
+      console.error("Failed to get analysis from backend:", error);
+      // TODO: show a user-friendly error message in the UI if you want
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
 
   return (
@@ -448,30 +565,68 @@ const MainApp = () => {
                 Add a clear photo and a few quick details. We’ll use this to
                 build your personalized skin care plan.
               </p>
-
+  
               <div className="capture-block">
-                {/* Image / camera input */}
-                <div className="capture-row">
-                  <button
-                    type="button"
-                    className="primary-btn capture-btn"
-                    onClick={handleUploadClick}
-                  >
-                    📸 Upload or capture a photo
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleFileChange}
-                  />
-                  <p className="capture-status">
-                    {hasUploadedImage
-                      ? "Image added ✔"
-                      : "No image yet — add a clear photo of your face."}
-                  </p>
-                </div>
+                {/* This container will hold the image selection and preview */}
+                <div className="capture-flex-container">
+                  {/* Left side: Upload buttons or Image Preview */}
+                  <div className="capture-main-panel">
+                    {isWebcamActive ? (
+                      <WebcamCapture
+                        onCapture={handleWebcamCapture}
+                        onCancel={handleWebcamCancel}
+                      />
+                    ) : imageData ? (
+                      <div className="image-preview-box">
+                        {/* The image tag now has inline styles for dynamic sizing */}
+                        <img 
+                          src={imageData} 
+                          alt="Selected skin" 
+                          className="preview-image" 
+                          style={{ maxWidth: '100%', maxHeight: '300px', height: 'auto', width: 'auto' }} />
+                        {!imageConfirmed && (
+                          <div className="preview-actions">
+                            <button type="button" className="secondary-btn" onClick={handleRetake}>
+                              Retake
+                            </button>
+                            <button type="button" className="primary-btn" onClick={handleUseThis}>
+                              Use This!
+                            </button>
+                          </div>
+                        )}
+                        {imageConfirmed && (
+                           <div className="preview-confirmed-badge">
+                             ✔ Image Confirmed
+                           </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="capture-actions">
+                        <button
+                          type="button"
+                          className="primary-btn capture-btn"
+                          onClick={handleUploadClick}
+                        >
+                          📤 Upload a Photo
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn capture-btn"
+                          onClick={() => setIsWebcamActive(true)}
+                        >
+                          📸 Take a Live Picture
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={handleFileChange}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div> {/* End of capture-flex-container */}
 
                 {/* User filters form */}
                 <div className="user-form">
@@ -536,6 +691,21 @@ const MainApp = () => {
                   </div>
                 </div>
 
+/*THIS IS WHERE MRIDA AND ATIKA'S CODE IS. IF ANYTHING NEEDS TO BE FIXED DO THIS*/
+                {/* "Start Scan" button appears only after image is confirmed and form is filled */}
+                {imageConfirmed && (
+                  <button
+                    type="button"
+                    className={
+                      "generate-btn" +
+                      (canStartFlow ? " generate-btn-active" : "")
+                    }
+                    disabled={!canStartFlow || isGenerating}
+                    onClick={handleGeneratePlan}
+                  >
+                    {canStartFlow ? "Start Scan" : "Please fill out your profile"}
+                  </button>
+                )}
                 {/* Generate plan button */}
                 <button
                   type="button"
