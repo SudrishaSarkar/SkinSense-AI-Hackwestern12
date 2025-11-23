@@ -126,7 +126,9 @@ const AuthScreen = ({ onAuthSuccess }) => {
           <div className="auth-tabs">
             <button
               type="button"
-              className={`auth-tab ${mode === "login" ? "auth-tab-active" : ""}`}
+              className={`auth-tab ${
+                mode === "login" ? "auth-tab-active" : ""
+              }`}
               onClick={() => setMode("login")}
             >
               Log in
@@ -346,7 +348,7 @@ const MainApp = () => {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) {
       setImageConfirmed(false); // Reset confirmation if a new image is chosen
@@ -645,9 +647,7 @@ const MainApp = () => {
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="nonbinary">Non-binary</option>
-                        <option value="prefer-not">
-                          Prefer not to say
-                        </option>
+                        <option value="prefer-not">Prefer not to say</option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -683,9 +683,7 @@ const MainApp = () => {
                       <LikertQuestion
                         label="Would you describe the intensity of your skincare as intensive?"
                         value={userFilters.intensity}
-                        onChange={(val) =>
-                          handleLikertChange("intensity", val)
-                        }
+                        onChange={(val) => handleLikertChange("intensity", val)}
                       />
                     </div>
                   </div>
@@ -774,19 +772,94 @@ const MainApp = () => {
                       <div className="viz-bars">
                         <div className="viz-bar">
                           <span>Acne</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis?.acne
+                                ? `${
+                                    apiData.skin_profile.skin_analysis.acne ===
+                                    "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .acne === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .acne === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Redness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.redness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .redness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .redness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .redness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Oiliness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.oiliness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .oiliness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .oiliness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .oiliness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                         <div className="viz-bar">
                           <span>Dryness</span>
-                          <div className="viz-bar-fill" />
+                          <div
+                            className="viz-bar-fill"
+                            style={{
+                              width: apiData?.skin_profile?.skin_analysis
+                                ?.dryness
+                                ? `${
+                                    apiData.skin_profile.skin_analysis
+                                      .dryness === "none"
+                                      ? 0
+                                      : apiData.skin_profile.skin_analysis
+                                          .dryness === "mild"
+                                      ? 25
+                                      : apiData.skin_profile.skin_analysis
+                                          .dryness === "moderate"
+                                      ? 50
+                                      : 75
+                                  }%`
+                                : "0%",
+                            }}
+                          />
                         </div>
                       </div>
 
@@ -794,14 +867,22 @@ const MainApp = () => {
 
                       <h3 className="viz-title">Skin Summary</h3>
                       <p className="viz-paragraph">
-                        “Your skin appears moderately oily with mild
-                        inflammation around the cheeks. Stress and low sleep
-                        might be contributing to congestion.”
+                        {apiData?.skin_profile?.skin_analysis
+                          ?.non_medical_summary ||
+                          "Your skin appears moderately oily with mild inflammation around the cheeks. Stress and low sleep might be contributing to congestion."}
                       </p>
                       <div className="viz-tags-row">
-                        <span>⚡ Stress</span>
-                        <span>💤 Sleep</span>
-                        <span>🩹 Barrier support</span>
+                        {apiData?.skin_profile?.skin_analysis?.probable_triggers
+                          ?.slice(0, 3)
+                          .map((trigger, idx) => (
+                            <span key={idx}>{trigger}</span>
+                          )) || (
+                          <>
+                            <span>⚡ Stress</span>
+                            <span>💤 Sleep</span>
+                            <span>🩹 Barrier support</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -811,19 +892,57 @@ const MainApp = () => {
                       <div>
                         <h3 className="viz-title">AM Routine</h3>
                         <ol className="routine-list">
-                          <li>Gentle gel cleanser</li>
-                          <li>Antioxidant serum</li>
-                          <li>Oil-free moisturizer</li>
-                          <li>SPF 30+ sunscreen</li>
+                          {apiData?.routine?.steps
+                            ?.filter(
+                              (step) =>
+                                step.time === "AM" || step.time === "AM_PM"
+                            )
+                            .map((step, idx) => (
+                              <li key={idx}>
+                                <strong>{step.step}:</strong> {step.description}
+                              </li>
+                            )) || (
+                            <>
+                              <li>Gentle gel cleanser</li>
+                              <li>Antioxidant serum</li>
+                              <li>Oil-free moisturizer</li>
+                              <li>SPF 30+ sunscreen</li>
+                            </>
+                          )}
                         </ol>
+                        {apiData?.routine?.notes && (
+                          <p
+                            className="routine-notes"
+                            style={{
+                              marginTop: "1rem",
+                              fontStyle: "italic",
+                              color: "#666",
+                            }}
+                          >
+                            {apiData.routine.notes}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <h3 className="viz-title">PM Routine</h3>
                         <ol className="routine-list">
-                          <li>Oil-based cleanse</li>
-                          <li>Water-based cleanse</li>
-                          <li>Niacinamide serum</li>
-                          <li>Barrier repair cream</li>
+                          {apiData?.routine?.steps
+                            ?.filter(
+                              (step) =>
+                                step.time === "PM" || step.time === "AM_PM"
+                            )
+                            .map((step, idx) => (
+                              <li key={idx}>
+                                <strong>{step.step}:</strong> {step.description}
+                              </li>
+                            )) || (
+                            <>
+                              <li>Oil-based cleanse</li>
+                              <li>Water-based cleanse</li>
+                              <li>Niacinamide serum</li>
+                              <li>Barrier repair cream</li>
+                            </>
+                          )}
                         </ol>
                       </div>
                     </div>
@@ -834,63 +953,135 @@ const MainApp = () => {
                       <h3 className="viz-title">Matched Products</h3>
 
                       <div className="product-grid">
-                        <div className="product-card">
-                          <div className="product-image">
-                            <div className="product-thumb product-thumb-1" />
-                          </div>
-                          <div className="product-meta">
-                            <p className="product-name">
-                              CeraVe Foaming Facial Cleanser
-                            </p>
-                            <p className="product-detail">
-                              For oily / combo skin · niacinamide, ceramides,
-                              non-comedogenic.
-                            </p>
-                            <div className="product-store-row">
-                              <span>Walmart</span>
-                              <span className="product-price">$13.97</span>
-                            </div>
-                            <div className="product-store-row">
-                              <span>Amazon.ca</span>
-                              <span className="product-price">$15.49</span>
-                            </div>
-                            <span className="product-tag">
-                              Best price: Walmart
-                            </span>
-                          </div>
-                        </div>
+                        {apiData?.recommended_products &&
+                        Array.isArray(apiData.recommended_products) &&
+                        apiData.recommended_products.length > 0 ? (
+                          apiData.recommended_products
+                            .slice(0, 6)
+                            .map((product, idx) => {
+                              const priceData =
+                                apiData?.price_comparisons?.find(
+                                  (pc) => pc.product_name === product.name
+                                );
+                              const cheapestPrice = priceData?.prices
+                                ?.filter((p) => p.price !== null)
+                                ?.sort(
+                                  (a, b) =>
+                                    (a.price ?? Infinity) -
+                                    (b.price ?? Infinity)
+                                )[0];
 
-                        <div className="product-card">
-                          <div className="product-image">
-                            <div className="product-thumb product-thumb-2" />
-                          </div>
-                          <div className="product-meta">
-                            <p className="product-name">
-                              La Roche-Posay Toleriane Sensitive Cream
-                            </p>
-                            <p className="product-detail">
-                              For redness &amp; barrier repair · minimalist
-                              formula, fragrance-free.
-                            </p>
-                            <div className="product-store-row">
-                              <span>Shoppers Drug Mart</span>
-                              <span className="product-price">$28.99</span>
+                              return (
+                                <div
+                                  key={product.id || idx}
+                                  className="product-card"
+                                >
+                                  <div className="product-image">
+                                    {product.image_url ? (
+                                      <img
+                                        src={product.image_url}
+                                        alt={product.name}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    ) : (
+                                      <div
+                                        className={`product-thumb product-thumb-${
+                                          (idx % 2) + 1
+                                        }`}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="product-meta">
+                                    <p className="product-name">
+                                      {product.name || "Product"}
+                                    </p>
+                                    <p className="product-detail">
+                                      {product.brand && `${product.brand} · `}
+                                      {product.category &&
+                                        `${product.category} · `}
+                                      {product.key_ingredients
+                                        ?.slice(0, 3)
+                                        .join(", ")}
+                                    </p>
+                                    {product.recommendation_reason && (
+                                      <p
+                                        className="product-reason"
+                                        style={{
+                                          fontSize: "0.9rem",
+                                          color: "#666",
+                                          marginTop: "0.5rem",
+                                        }}
+                                      >
+                                        {product.recommendation_reason}
+                                      </p>
+                                    )}
+                                    {product.price_estimate && (
+                                      <p
+                                        className="product-price"
+                                        style={{
+                                          marginTop: "0.5rem",
+                                          fontWeight: "bold",
+                                        }}
+                                      >
+                                        ${product.price_estimate.toFixed(2)} CAD
+                                      </p>
+                                    )}
+                                    {priceData?.prices
+                                      ?.filter((p) => p.price !== null)
+                                      .map((storePrice, spIdx) => (
+                                        <div
+                                          key={spIdx}
+                                          className="product-store-row"
+                                        >
+                                          <span>{storePrice.store}</span>
+                                          <span className="product-price">
+                                            ${storePrice.price?.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    {cheapestPrice && (
+                                      <span className="product-tag">
+                                        Best price: {cheapestPrice.store}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                        ) : (
+                          <>
+                            <div className="product-card">
+                              <div className="product-image">
+                                <div className="product-thumb product-thumb-1" />
+                              </div>
+                              <div className="product-meta">
+                                <p className="product-name">
+                                  CeraVe Foaming Facial Cleanser
+                                </p>
+                                <p className="product-detail">
+                                  For oily / combo skin · niacinamide,
+                                  ceramides, non-comedogenic.
+                                </p>
+                                <div className="product-store-row">
+                                  <span>Walmart</span>
+                                  <span className="product-price">$13.97</span>
+                                </div>
+                                <div className="product-store-row">
+                                  <span>Amazon.ca</span>
+                                  <span className="product-price">$15.49</span>
+                                </div>
+                                <span className="product-tag">
+                                  Best price: Walmart
+                                </span>
+                              </div>
                             </div>
-                            <div className="product-store-row">
-                              <span>Sephora</span>
-                              <span className="product-price">$27.00</span>
-                            </div>
-                            <span className="product-tag product-tag-alt">
-                              Best match: Sensitive skin
-                            </span>
-                          </div>
-                        </div>
+                          </>
+                        )}
                       </div>
-
-                      <p className="search-note">
-                        *In the full version, these cards would be auto-filled
-                        from live web scraping / retail APIs.
-                      </p>
                     </div>
                   )}
 

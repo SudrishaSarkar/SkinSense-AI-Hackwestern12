@@ -1,87 +1,48 @@
-interface GeminiSafetyRating {
-  category: string;
-  probability: string;
-}
-
-interface GeminiContent {
-  parts: { text: string }[];
-  role: string;
-}
-
-interface GeminiCandidate {
-  content: GeminiContent;
-  finishReason: string;
-  index: number;
-  safetyRatings: GeminiSafetyRating[];
-}
-
-export interface GeminiResponse {
-  candidates: GeminiCandidate[];
-}
+import type { Env } from "../types";
+import { getGoogleAccessToken } from "./googleAuth";
 
 export async function callGeminiVision(
   base64Image: string,
   mimeType: string,
   prompt: string,
-  apiKey: string
-): Promise<GeminiResponse> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`;
+  env: Env
+) {
+  const accessToken = await getGoogleAccessToken(env);
 
-  const requestBody = {
+  const url =
+    "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent";
+
+  const body = {
     contents: [
       {
         parts: [
-          {
-            text: prompt,
-          },
           {
             inline_data: {
               mime_type: mimeType,
               data: base64Image,
             },
           },
+          { text: prompt },
         ],
-      },
-    ],
-    generation_config: {
-      temperature: 0.2,
-      top_k: 32,
-      top_p: 1,
-      max_output_tokens: 4096,
-      stop_sequences: [],
-    },
-    safety_settings: [
-      {
-        category: "HARM_CATEGORY_HARASSMENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_HATE_SPEECH",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-      {
-        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
       },
     ],
   };
 
-  const response = await fetch(url, {
+  const resp = await fetch(url, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Gemini API request failed: ${response.status} ${response.statusText} - ${errorBody}`);
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(
+      `Gemini Vision Error ${resp.status}: ${JSON.stringify(data)}`
+    );
   }
 
-  return await response.json();
+  return data;
 }

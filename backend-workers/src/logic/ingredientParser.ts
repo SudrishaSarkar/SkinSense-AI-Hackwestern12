@@ -38,14 +38,22 @@ export function detectIngredientHazards(
 
     if (!found) continue;
 
-    if (found.irritant) irritants.push(found.name);
-    if (found.fragrance) fragrance.push(found.name);
-    if (found.acne_trigger) acneTriggers.push(found.name);
+    if (found.irritancy_rating && found.irritancy_rating >= 3)
+      irritants.push(found.name);
+    // Check for fragrance in warnings or name
+    if (found.warnings?.some((w) => w.toLowerCase().includes("fragrance")))
+      fragrance.push(found.name);
+    if (found.warnings?.some((w) => w.toLowerCase().includes("acne")))
+      acneTriggers.push(found.name);
 
-    if (found.comedogenicity !== undefined && found.comedogenicity >= 3) {
+    if (
+      found.comedogenic_rating !== undefined &&
+      found.comedogenic_rating !== null &&
+      found.comedogenic_rating >= 3
+    ) {
       comedogenic.push({
         ingredient: found.name,
-        rating: found.comedogenicity,
+        rating: found.comedogenic_rating,
       });
     }
   }

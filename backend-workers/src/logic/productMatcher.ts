@@ -1,123 +1,164 @@
 // src/logic/productMatcher.ts
-
-import type { SkinProfile, Product, IngredientInfo } from "../types";
-import {
-  parseIngredients,
-  computeIngredientSafetyScore,
-} from "./ingredientParser";
+import type { Product, IngredientInfo, SkinProfile, Env } from "../types";
+import { callGemini } from "../aiSystemPrompts/geminiClient";
+import { PRODUCT_MATCHING_PROMPT } from "../ai/prompts";
 
 /**
- * Scores a product relative to a user's skin profile.
- * Higher score = better match.
+ * Rule-based fallback: matches on concerns + skin type + avoids comedogenic ingredients if acne/oily.
  */
-function scoreProduct(
-  product: Product,
+function matchProductsRuleBased(
   profile: SkinProfile,
-  ingredientDb: IngredientInfo[]
-): number {
-  const { skin_analysis: s } = profile;
-  let score = 0;
+  products: Product[],
+  inciDb: IngredientInfo[],
+  limit: number
+): Product[] {
+  const { skin_analysis } = profile;
 
-  /* ------------------------------------------------------
-   * 1. Ingredient safety score (0–100)
-   * ------------------------------------------------------ */
-  const parsed = parseIngredients(product.ingredients_full);
-  const safety = computeIngredientSafetyScore(parsed, ingredientDb);
+  const wantsAcneSupport = skin_analysis.acne !== "none";
+  const wantsRednessSupport = skin_analysis.redness !== "none";
+  const wantsDrynessSupport = skin_analysis.dryness !== "none";
+  const wantsOilControl = skin_analysis.oiliness !== "none";
 
-  if (safety > 90) score += 6;
-  if (safety > 75) score += 4;
-  if (safety < 50) score -= 5;
-  if (safety < 30) score -= 8;
-
-  /* ------------------------------------------------------
-   * 2. Skin type compatibility
-   * ------------------------------------------------------ */
-  if (s.oiliness === "moderate" || s.oiliness === "severe") {
-    if (product.suitable_for.includes("oily")) score += 4;
-    if (product.suitable_for.includes("acne-prone")) score += 3;
+  function ingredientPenalty(ingredients: string[]): number {
+    if (!wantsAcneSupport && !wantsOilControl) return 0;
+    const lowerNames = ingredients.map((i) => i.toLowerCase());
+    let penalty = 0;
+    for (const ing of inciDb) {
+      if (!ing.name) continue;
+      const nameLower = ing.name.toLowerCase();
+      if (lowerNames.includes(nameLower)) {
+        if ((ing.comedogenic_rating ?? 0) >= 3) penalty += 2;
+        if ((ing.irritancy_rating ?? 0) >= 3) penalty += 1;
+      }
+    }
+    return penalty;
   }
 
-  if (s.dryness === "moderate" || s.dryness === "severe") {
-    if (product.suitable_for.includes("dry")) score += 4;
-    if (product.suitable_for.includes("sensitive")) score += 2;
-  }
+  const scored = products.map((p) => {
+    let score = 0;
 
-  if (s.redness === "moderate" || s.redness === "severe") {
-    if (product.suitable_for.includes("sensitive")) score += 3;
-  }
+    const concernsLower = p.concerns.map((c) => c.toLowerCase());
 
-  /* ------------------------------------------------------
-   * 3. Ingredient-based improvements
-   * ------------------------------------------------------ */
-  const inci = product.ingredients_full.toLowerCase();
+    if (wantsAcneSupport && concernsLower.includes("acne")) score += 3;
+    if (wantsRednessSupport && concernsLower.includes("redness")) score += 2;
+    if (wantsDrynessSupport && concernsLower.includes("dryness")) score += 2;
+    if (wantsOilControl && concernsLower.includes("oil control")) score += 2;
 
-  // Acne fighting
-  if (s.acne === "moderate" || s.acne === "severe") {
-    if (inci.includes("salicylic")) score += 4;
-    if (inci.includes("bha")) score += 3;
-    if (inci.includes("niacinamide")) score += 2;
-  }
+    // small bonus for "barrier", "hydration", "sensitive"
+    if (concernsLower.includes("barrier")) score += 1;
+    if (concernsLower.includes("hydration")) score += 1;
+    if (concernsLower.includes("sensitivity")) score += 1;
 
-  // Dryness/hydration
-  if (s.dryness === "moderate" || s.dryness === "severe") {
-    if (inci.includes("hyaluronic")) score += 4;
-    if (inci.includes("ceramide")) score += 3;
-    if (inci.includes("glycerin")) score += 2;
-    if (inci.includes("squalane")) score += 2;
-  }
+    score -= ingredientPenalty(p.ingredients);
 
-  // Redness / sensitivity
-  if (s.redness === "moderate" || s.redness === "severe") {
-    if (inci.includes("centella")) score += 3;
-    if (inci.includes("panthenol")) score += 2;
-    if (inci.includes("madecassoside")) score += 3;
-  }
+    return { product: p, score };
+  });
 
-  /* ------------------------------------------------------
-   * 4. Texture issues
-   * ------------------------------------------------------ */
-  if (s.texture_notes.includes("visible congestion")) {
-    if (inci.includes("salicylic")) score += 4;
-    if (inci.includes("bha")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 5. Routine Focus Alignment
-   * ------------------------------------------------------ */
-  for (const goal of s.routine_focus) {
-    if (goal === "barrier repair" && inci.includes("ceramide")) score += 3;
-    if (goal === "oil control" && inci.includes("niacinamide")) score += 2;
-    if (goal === "soothing" && inci.includes("centella")) score += 3;
-  }
-
-  /* ------------------------------------------------------
-   * 6. Penalties (fragrance, essential oils, drying alcohol)
-   * ------------------------------------------------------ */
-  if (!product.fragrance_free) score -= 3;
-  if (inci.includes("fragrance")) score -= 4;
-  if (inci.includes("parfum")) score -= 4;
-  if (inci.includes("lavender oil")) score -= 4;
-  if (inci.includes("essential oil")) score -= 3;
-  if (inci.includes("alcohol denat")) score -= 3;
-
-  return score;
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.product);
 }
 
 /**
- * MAIN MATCHER — returns top N products.
+ * AI-powered product matching using Gemini.
+ * Analyzes skin profile and matches products intelligently.
  */
-export function matchProductsToSkinProfile(
+async function matchProductsWithAI(
   profile: SkinProfile,
   products: Product[],
-  ingredientDb: IngredientInfo[],
-  limit: number = 15
-): Product[] {
-  const scored = products.map((p) => ({
-    product: p,
-    score: scoreProduct(p, profile, ingredientDb),
-  }));
+  limit: number,
+  env: Env
+): Promise<Product[]> {
+  const prompt = `${PRODUCT_MATCHING_PROMPT}
 
-  scored.sort((a, b) => b.score - a.score);
+User's Skin Profile:
+${JSON.stringify(profile, null, 2)}
 
-  return scored.slice(0, limit).map((x) => x.product);
+Available Products (limit to top 50 for analysis):
+${JSON.stringify(products.slice(0, 50), null, 2)}
+
+Analyze and rank the products that best match this user's needs. Return the top ${limit} products.`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ],
+  };
+
+  try {
+    const result = await callGemini("gemini-2.0-flash-001", payload, env);
+
+    if (
+      !result ||
+      !result.ranked_products ||
+      !Array.isArray(result.ranked_products)
+    ) {
+      console.warn(
+        "⚠️ Gemini returned invalid product matching structure, using fallback"
+      );
+      return matchProductsRuleBased(profile, products, [], limit);
+    }
+
+    // Map product IDs back to Product objects
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const matched: Product[] = [];
+
+    for (const ranked of result.ranked_products.slice(0, limit)) {
+      const product = productMap.get(ranked.product_id);
+      if (product) {
+        matched.push(product);
+      }
+    }
+
+    // If AI didn't return enough products, fill with rule-based
+    if (matched.length < limit) {
+      const remaining = limit - matched.length;
+      const matchedIds = new Set(matched.map((p) => p.id));
+      const additional = matchProductsRuleBased(
+        profile,
+        products,
+        [],
+        remaining * 2
+      )
+        .filter((p) => !matchedIds.has(p.id))
+        .slice(0, remaining);
+      matched.push(...additional);
+    }
+
+    return matched;
+  } catch (error: any) {
+    console.error("❌ Error in AI product matching:", error);
+    return matchProductsRuleBased(profile, products, [], limit);
+  }
+}
+
+/**
+ * Main product matching function.
+ * Uses AI if available, falls back to rule-based.
+ */
+export async function matchProductsToSkinProfile(
+  profile: SkinProfile,
+  products: Product[],
+  inciDb: IngredientInfo[],
+  limit: number,
+  env?: Env
+): Promise<Product[]> {
+  // If no API key, use rule-based
+  if (!env?.GEMINI_API_KEY) {
+    return matchProductsRuleBased(profile, products, inciDb, limit);
+  }
+
+  try {
+    console.log("🤖 Using AI-powered product matching...");
+    const aiMatched = await matchProductsWithAI(profile, products, limit, env);
+    console.log(`✅ AI matched ${aiMatched.length} products`);
+    return aiMatched;
+  } catch (error: any) {
+    console.error("⚠️ AI product matching failed, using fallback:", error);
+    return matchProductsRuleBased(profile, products, inciDb, limit);
+  }
 }

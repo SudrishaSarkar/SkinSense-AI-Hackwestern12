@@ -1,32 +1,92 @@
-import { callGemini } from "../ai/geminiClient";
+// src/routes/cycleInsights.ts
+import { callGemini } from "../aiSystemPrompts/geminiClient";
 import { CYCLE_INSIGHTS_PROMPT } from "../ai/prompts";
 import type { Env, SkinAnalysis, CycleLifestyleInput } from "../types";
+import { corsHeaders } from "../utils/cors";
+import { safeJSONParse } from "../utils/safeJSON";
 
-export async function handleCycleInsights(request: Request, env: Env) {
-  const body = (await request.json()) as {
+export async function handleCycleInsights(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  let body: {
     skin_analysis?: SkinAnalysis;
     cycle_lifestyle?: CycleLifestyleInput;
   };
-  
-  const skin = body.skin_analysis as SkinAnalysis;
-  const cycle = body.cycle_lifestyle as CycleLifestyleInput;
 
-  const payload = {
-    contents: [
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON in request body" }),
       {
-        role: "user",
-        parts: [
-          { text: CYCLE_INSIGHTS_PROMPT },
-          { text: JSON.stringify({ skin, cycle }) },
-        ],
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
+    );
+  }
+
+  const skin = body.skin_analysis;
+  const cycle =
+    body.cycle_lifestyle ??
+    ({
+      cycle_phase: "unknown",
+      sleep_hours: 7,
+      hydration_cups: 6,
+      stress_level: 3,
+      mood: 3,
+    } as CycleLifestyleInput);
+
+  // Fallback: if no key, just echo cycle back
+  if (!env.GEMINI_API_KEY) {
+    return new Response(JSON.stringify(cycle), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
       },
-    ],
-  };
+    });
+  }
 
-  const result = await callGemini("gemini-1.5-pro-latest", payload, env);
+  try {
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: CYCLE_INSIGHTS_PROMPT },
+            {
+              text: JSON.stringify({
+                skin_analysis: skin,
+                cycle_lifestyle: cycle,
+              }),
+            },
+          ],
+        },
+      ],
+    };
 
-  return new Response(JSON.stringify(result), {
-    headers: { "Content-Type": "application/json" },
-  });
+    const result = await callGemini("gemini-2.0-flash-001", payload, env);
+
+    // Expecting { cycle_lifestyle: {...}, notes: "..." }
+    const cycleOut: CycleLifestyleInput = result?.cycle_lifestyle ?? cycle;
+
+    return new Response(JSON.stringify(cycleOut), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
+  } catch (err: any) {
+    console.error("cycleInsights Gemini error:", err);
+    // Fallback: return input cycle
+    return new Response(JSON.stringify(cycle), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
+  }
 }
-
