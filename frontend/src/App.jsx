@@ -3354,12 +3354,16 @@ const MainApp = () => {
                       <div>
                         <h3 className="viz-title">AM Routine</h3>
                         <ol className="routine-list">
-                          {apiData?.routine?.am?.map((step, idx) => (
-                            <li key={idx}>
-                              <strong>{step.step_name}:</strong>{" "}
-                              {step.instruction}
-                            </li>
-                          )) || (
+                          {apiData?.routine?.steps
+                            ?.filter(
+                              (step) =>
+                                step.time === "AM" || step.time === "AM_PM"
+                            )
+                            .map((step, idx) => (
+                              <li key={idx}>
+                                <strong>{step.step}:</strong> {step.description}
+                              </li>
+                            )) || (
                             <>
                               <li>Gentle gel cleanser</li>
                               <li>Antioxidant serum</li>
@@ -3368,16 +3372,32 @@ const MainApp = () => {
                             </>
                           )}
                         </ol>
+                        {apiData?.routine?.notes && (
+                          <p
+                            className="routine-notes"
+                            style={{
+                              marginTop: "1rem",
+                              fontStyle: "italic",
+                              color: "#666",
+                            }}
+                          >
+                            {apiData.routine.notes}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <h3 className="viz-title">PM Routine</h3>
                         <ol className="routine-list">
-                          {apiData?.routine?.pm?.map((step, idx) => (
-                            <li key={idx}>
-                              <strong>{step.step_name}:</strong>{" "}
-                              {step.instruction}
-                            </li>
-                          )) || (
+                          {apiData?.routine?.steps
+                            ?.filter(
+                              (step) =>
+                                step.time === "PM" || step.time === "AM_PM"
+                            )
+                            .map((step, idx) => (
+                              <li key={idx}>
+                                <strong>{step.step}:</strong> {step.description}
+                              </li>
+                            )) || (
                             <>
                               <li>Oil-based cleanse</li>
                               <li>Water-based cleanse</li>
@@ -3435,13 +3455,36 @@ const MainApp = () => {
                                 <div className="product-meta">
                                   <p className="product-name">{product.name}</p>
                                   <p className="product-detail">
-                                    {product.suitable_for?.join(", ")} ·{" "}
+                                    {product.brand && `${product.brand} · `}
+                                    {product.category &&
+                                      `${product.category} · `}
                                     {product.key_ingredients
                                       ?.slice(0, 3)
                                       .join(", ")}
-                                    {product.fragrance_free &&
-                                      " · Fragrance-free"}
                                   </p>
+                                  {product.recommendation_reason && (
+                                    <p
+                                      className="product-reason"
+                                      style={{
+                                        fontSize: "0.9rem",
+                                        color: "#666",
+                                        marginTop: "0.5rem",
+                                      }}
+                                    >
+                                      {product.recommendation_reason}
+                                    </p>
+                                  )}
+                                  {product.price_estimate && (
+                                    <p
+                                      className="product-price"
+                                      style={{
+                                        marginTop: "0.5rem",
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      ${product.price_estimate.toFixed(2)} CAD
+                                    </p>
+                                  )}
                                   {priceData?.prices
                                     ?.filter((p) => p.price !== null)
                                     .map((storePrice, spIdx) => (
