@@ -3415,98 +3415,106 @@ const MainApp = () => {
                       <h3 className="viz-title">Matched Products</h3>
 
                       <div className="product-grid">
-                        {apiData?.recommended_products
-                          ?.slice(0, 6)
-                          .map((product, idx) => {
-                            const priceData = apiData?.price_comparisons?.find(
-                              (pc) => pc.product_name === product.name
-                            );
-                            const cheapestPrice = priceData?.prices
-                              ?.filter((p) => p.price !== null)
-                              ?.sort(
-                                (a, b) =>
-                                  (a.price ?? Infinity) - (b.price ?? Infinity)
-                              )[0];
+                        {apiData?.recommended_products &&
+                        Array.isArray(apiData.recommended_products) &&
+                        apiData.recommended_products.length > 0 ? (
+                          apiData.recommended_products
+                            .slice(0, 6)
+                            .map((product, idx) => {
+                              const priceData =
+                                apiData?.price_comparisons?.find(
+                                  (pc) => pc.product_name === product.name
+                                );
+                              const cheapestPrice = priceData?.prices
+                                ?.filter((p) => p.price !== null)
+                                ?.sort(
+                                  (a, b) =>
+                                    (a.price ?? Infinity) -
+                                    (b.price ?? Infinity)
+                                )[0];
 
-                            return (
-                              <div
-                                key={product.id || idx}
-                                className="product-card"
-                              >
-                                <div className="product-image">
-                                  {product.image_url ? (
-                                    <img
-                                      src={product.image_url}
-                                      alt={product.name}
-                                      style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        objectFit: "cover",
-                                      }}
-                                    />
-                                  ) : (
-                                    <div
-                                      className={`product-thumb product-thumb-${
-                                        (idx % 2) + 1
-                                      }`}
-                                    />
-                                  )}
-                                </div>
-                                <div className="product-meta">
-                                  <p className="product-name">{product.name}</p>
-                                  <p className="product-detail">
-                                    {product.brand && `${product.brand} · `}
-                                    {product.category &&
-                                      `${product.category} · `}
-                                    {product.key_ingredients
-                                      ?.slice(0, 3)
-                                      .join(", ")}
-                                  </p>
-                                  {product.recommendation_reason && (
-                                    <p
-                                      className="product-reason"
-                                      style={{
-                                        fontSize: "0.9rem",
-                                        color: "#666",
-                                        marginTop: "0.5rem",
-                                      }}
-                                    >
-                                      {product.recommendation_reason}
-                                    </p>
-                                  )}
-                                  {product.price_estimate && (
-                                    <p
-                                      className="product-price"
-                                      style={{
-                                        marginTop: "0.5rem",
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      ${product.price_estimate.toFixed(2)} CAD
-                                    </p>
-                                  )}
-                                  {priceData?.prices
-                                    ?.filter((p) => p.price !== null)
-                                    .map((storePrice, spIdx) => (
+                              return (
+                                <div
+                                  key={product.id || idx}
+                                  className="product-card"
+                                >
+                                  <div className="product-image">
+                                    {product.image_url ? (
+                                      <img
+                                        src={product.image_url}
+                                        alt={product.name}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    ) : (
                                       <div
-                                        key={spIdx}
-                                        className="product-store-row"
+                                        className={`product-thumb product-thumb-${
+                                          (idx % 2) + 1
+                                        }`}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="product-meta">
+                                    <p className="product-name">
+                                      {product.name || "Product"}
+                                    </p>
+                                    <p className="product-detail">
+                                      {product.brand && `${product.brand} · `}
+                                      {product.category &&
+                                        `${product.category} · `}
+                                      {product.key_ingredients
+                                        ?.slice(0, 3)
+                                        .join(", ")}
+                                    </p>
+                                    {product.recommendation_reason && (
+                                      <p
+                                        className="product-reason"
+                                        style={{
+                                          fontSize: "0.9rem",
+                                          color: "#666",
+                                          marginTop: "0.5rem",
+                                        }}
                                       >
-                                        <span>{storePrice.store}</span>
-                                        <span className="product-price">
-                                          ${storePrice.price?.toFixed(2)}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  {cheapestPrice && (
-                                    <span className="product-tag">
-                                      Best price: {cheapestPrice.store}
-                                    </span>
-                                  )}
+                                        {product.recommendation_reason}
+                                      </p>
+                                    )}
+                                    {product.price_estimate && (
+                                      <p
+                                        className="product-price"
+                                        style={{
+                                          marginTop: "0.5rem",
+                                          fontWeight: "bold",
+                                        }}
+                                      >
+                                        ${product.price_estimate.toFixed(2)} CAD
+                                      </p>
+                                    )}
+                                    {priceData?.prices
+                                      ?.filter((p) => p.price !== null)
+                                      .map((storePrice, spIdx) => (
+                                        <div
+                                          key={spIdx}
+                                          className="product-store-row"
+                                        >
+                                          <span>{storePrice.store}</span>
+                                          <span className="product-price">
+                                            ${storePrice.price?.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    {cheapestPrice && (
+                                      <span className="product-tag">
+                                        Best price: {cheapestPrice.store}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          }) || (
+                              );
+                            })
+                        ) : (
                           <>
                             <div className="product-card">
                               <div className="product-image">
