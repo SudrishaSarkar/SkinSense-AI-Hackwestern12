@@ -2798,6 +2798,11 @@ const MainApp = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
 
+  // 1. Add state to store the image data (as a base64 string)
+  const [imageData, setImageData] = useState(null);
+  // Add state to store results from the backend
+  const [analysisResult, setAnalysisResult] = useState(null);
+
   const [userFilters, setUserFilters] = useState({
     gender: "",
     ageRange: "",
@@ -2884,6 +2889,15 @@ const MainApp = () => {
     const file = e.target.files && e.target.files[0];
     if (file) {
       setHasUploadedImage(true);
+      // 2. Convert the image file to a base64 string
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // The result contains the base64 string
+        setImageData(reader.result);
+        setHasUploadedImage(true);
+      };
+      reader.readAsDataURL(file);
+
     }
   };
 
@@ -2896,21 +2910,96 @@ const MainApp = () => {
   //   }, 50);
   // };
 
-  const handleGeneratePlan = () => {
-  if (!canStartFlow || isGenerating) return;
+//   const handleGeneratePlan = () => {
+//   if (!canStartFlow || isGenerating) return;
 
-  setIsGenerating(true);
+//   setIsGenerating(true);
 
-  // Fake loading delay (so spinner is visible)
-  setTimeout(() => {
-    setHasGeneratedPlan(true);
-    setIsGenerating(false);
+//   // Fake loading delay (so spinner is visible)
+//   setTimeout(() => {
+//     setHasGeneratedPlan(true);
+//     setIsGenerating(false);
 
-    setTimeout(() => {
-      handleScrollTo("analysis");
-    }, 60);
-  }, 1200);
-};
+//     setTimeout(() => {
+//       handleScrollTo("analysis");
+//     }, 60);
+//   }, 1200);
+// };
+
+  // // 3. Update handleGeneratePlan to send the image to the backend
+  // const handleGeneratePlan = async () => {
+  //   if (!canStartFlow || isGenerating) return;
+
+  //   setIsGenerating(true);
+
+  //   try {
+  //     // The URL should match your backend server and endpoint
+  //     const response = await fetch("http://localhost:5000/api/analyze", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ image: imageData, filters: userFilters }), // Send image and filters
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! status: ${response.status}`);
+  //     }
+
+  //     const results = await response.json();
+  //     setAnalysisResult(results); // Save the analysis results
+  //     console.log("Backend Analysis Results:", results);
+
+  //     // Once we have results, show the next sections
+  //     setHasGeneratedPlan(true);
+
+  //     // Scroll to the analysis section
+  //     setTimeout(() => handleScrollTo("analysis"), 100);
+  //   } catch (error) {
+  //     console.error("Failed to get analysis from backend:", error);
+  //     // You could show an error message to the user here
+  //   } finally {
+  //     setIsGenerating(false);
+  //   }
+  // };
+
+
+
+    // Replace BOTH old handleGeneratePlan definitions with just this one:
+  const handleGeneratePlan = async () => {
+    if (!canStartFlow || isGenerating) return;
+
+    setIsGenerating(true);
+
+    try {
+      // Optional: if you still want a minimum spinner time, uncomment:
+      // await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image: imageData, filters: userFilters }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const results = await response.json();
+      setAnalysisResult(results);
+      setHasGeneratedPlan(true);
+
+      // Scroll to analysis section after we have results
+      setTimeout(() => handleScrollTo("analysis"), 100);
+    } catch (error) {
+      console.error("Failed to get analysis from backend:", error);
+      // TODO: show a user-friendly error message in the UI if you want
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
 
   return (
