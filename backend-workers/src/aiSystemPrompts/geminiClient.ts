@@ -82,7 +82,7 @@ export async function callGemini(
     "https://generativelanguage.googleapis.com/v1/models/" +
     model +
     ":generateContent?key=" +
-    encodeURIComponent(env.GEMINI_API_KEY);
+    encodeURIComponent(env.VITE_GEMINI_API_KEY);
 
   const resp = await fetch(url, {
     method: "POST",

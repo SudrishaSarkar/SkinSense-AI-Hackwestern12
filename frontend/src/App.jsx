@@ -2,11 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import WebcamCapture from "./components/WebcamCapture"; // Import WebcamCapture
-import {
-  generateRecommendationBundle,
-  dataUrlToBase64,
-  fileToBase64,
-} from "./api/skinsense";
 
 /* =======================
    STEP METADATA (AFTER GENERATE)
@@ -82,26 +77,127 @@ const AuthScreen = ({ onAuthSuccess }) => {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Load users from JSON file or localStorage
+  const loadUsers = async () => {
+    try {
+      // First try localStorage
+      const localUsers = localStorage.getItem('skinsense_users');
+      if (localUsers) {
+        const data = JSON.parse(localUsers);
+        return data.users || [];
+      }
+      
+      // Fallback to JSON file
+      const response = await fetch('/users.json');
+      const data = await response.json();
+      return data.users || [];
+    } catch (err) {
+      console.error('Error loading users:', err);
+      return [];
+    }
+  };
+
+  // Save users to JSON file (simulate by updating local storage)
+  const saveUsers = async (users) => {
+    try {
+      // In a real app, this would be a backend API call
+      // For now, we'll use localStorage to persist users
+      localStorage.setItem('skinsense_users', JSON.stringify({ users }));
+      return true;
+    } catch (err) {
+      console.error('Error saving users:', err);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     if (!email || !password || (mode === "signup" && !name)) {
       setError("Please fill in all required fields.");
+      setIsLoading(false);
       return;
     }
 
     if (mode === "signup" && password !== confirm) {
       setError("Passwords do not match.");
+      setIsLoading(false);
       return;
     }
 
-    // FRONTEND ONLY: later we’ll hook this to the backend auth routes.
-    onAuthSuccess({
-      name: name || "SkinSense user",
-      email,
-    });
+    if (mode === "signup" && password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const users = await loadUsers();
+
+      if (mode === "login") {
+        // Check if user exists and password matches
+        const user = users.find(u => u.email === email);
+        
+        if (!user) {
+          setError("Username/Password Invalid. Sign up to create a new account");
+          setIsLoading(false);
+          return;
+        }
+
+        if (user.password !== password) {
+          setError("Username/Password Invalid. Sign up to create a new account");
+          setIsLoading(false);
+          return;
+        }
+
+        // Login successful
+        onAuthSuccess({
+          name: user.name,
+          email: user.email,
+        });
+
+      } else {
+        // Signup mode
+        const existingUser = users.find(u => u.email === email);
+        
+        if (existingUser) {
+          setError("An account with this email already exists. Please log in.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Create new user
+        const newUser = {
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password: password, // In a real app, this would be hashed
+          createdAt: new Date().toISOString()
+        };
+
+        const updatedUsers = [...users, newUser];
+        const saved = await saveUsers(updatedUsers);
+
+        if (!saved) {
+          setError("Failed to create account. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Auto-login after successful signup
+        onAuthSuccess({
+          name: newUser.name,
+          email: newUser.email,
+        });
+      }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError("An error occurred. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -200,17 +296,19 @@ const AuthScreen = ({ onAuthSuccess }) => {
               </div>
             )}
 
-            {error && <p className="auth-error">{error}</p>}
+            {error && <p className="auth-error" style={{ color: '#e74c3c', fontWeight: '600' }}>{error}</p>}
 
-            <button type="submit" className="auth-submit">
-              {mode === "login" ? "Log in" : "Create account"}
+            <button type="submit" className="auth-submit" disabled={isLoading}>
+              {isLoading ? (
+                <span>
+                  <span className="auth-spinner">|</span>
+                  {mode === "login" ? "Logging in..." : "Creating account..."}
+                </span>
+              ) : (
+                mode === "login" ? "Log in" : "Create account"
+              )}
             </button>
           </form>
-
-          <p className="auth-footnote">
-            Demo-only: this doesn’t create a real account yet. We’ll wire it to
-            the backend later.
-          </p>
         </div>
       </div>
     </div>
@@ -457,43 +555,101 @@ const MainApp = () => {
   //   }
   // };
 
+  // Function to calculate intelligent percentage based on image analysis + user input
+  const calculatePercentage = (analysisLevel, userInput, metric) => {
+    // If backend has analysis, use it
+    if (analysisLevel && analysisLevel !== "none") {
+      return analysisLevel === "mild" ? 25 : analysisLevel === "moderate" ? 50 : analysisLevel === "severe" ? 75 : 0;
+    }
+    
+    // If no backend analysis, use user input as fallback
+    if (userInput !== null && userInput !== undefined) {
+      // Convert Likert scale (0-4) to percentage (0-75)
+      return (userInput / 4) * 75;
+    }
+    
+    return 0;
+  };
+
+  // Function to generate product image URLs using Google Images API
+  const getProductImageUrl = (productName, brand) => {
+    // Check if we have a Google Images API key
+    const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || 'YOUR_UNSPLASH_CLIENT_ID';
+    
+    if (UNSPLASH_ACCESS_KEY && UNSPLASH_ACCESS_KEY !== 'YOUR_UNSPLASH_CLIENT_ID') {
+      // Use Google Images API for reliable product images
+      const searchQuery = encodeURIComponent(`${productName} ${brand} skincare product`);
+      return `https://api.unsplash.com/photos/random?client_id=${UNSPLASH_ACCESS_KEY}&query=${searchQuery}&orientation=landscape&w=120&h=90&fit=crop&auto=format`;
+    }
+    
+    // Fallback to branded placeholder if no API key
+    const brandColors = {
+      'CeraVe': '#4A90E2',
+      'La Roche-Posay': '#E74C3C',
+      'Neutrogena': '#F39C12',
+      'The Ordinary': '#9B59B6',
+      'Vanicream': '#27AE60',
+      'Cetaphil': '#E67E22',
+      'Aveeno': '#3498DB',
+      'Dove': '#95A5A6'
+    };
+
+    const bgColor = brandColors[brand] || '#95A5A6';
+    
+    // Create a data URL for a simple branded placeholder
+    return `data:image/svg+xml;base64,${btoa(`
+      <svg width="120" height="90" xmlns="http://www.w3.org/2000/svg">
+        <rect width="120" height="90" fill="${bgColor}"/>
+        <text x="60" y="45" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="bold">
+          ${brand || 'Product'}
+        </text>
+      </svg>
+    `)}`;
+  };
+
   const handleGeneratePlan = async () => {
-    if (!canStartFlow || isGenerating || !imageData) return;
+    if (!canStartFlow || isGenerating) return;
 
     setIsGenerating(true);
-    setApiError(null);
+    setApiError(null); // Clear previous errors
 
     try {
-      // Convert imageData (dataUrl from webcam or file) to base64 format
-      let imageBase64;
-      if (typeof imageData === "string" && imageData.startsWith("data:")) {
-        // It's a dataUrl (from webcam or file upload)
-        imageBase64 = dataUrlToBase64(imageData);
-      } else {
-        throw new Error("Invalid image data format");
-      }
+      // Extract base64 data from the data URL
+      const base64Data = imageData.split(',')[1]; // Remove the data:image/jpeg;base64, part
+      const mimeType = imageData.split(':')[1].split(';')[0]; // Extract mime type
 
-      // Map frontend form data to backend lifestyle format
-      const lifestyle = {
-        cycle_phase: "unknown", // Default, can be enhanced later
-        sleep_hours: 7, // Default
-        hydration_cups: 6, // Default
-        stress_level:
-          userFilters.intensity !== null
-            ? Math.min(5, Math.max(1, userFilters.intensity + 1)) // Map 0-4 to 1-5
-            : 3,
-        mood: 3, // Default
+      // Call the comprehensive recommendation bundle endpoint with correct structure
+      const payload = {
+        imageBase64: base64Data, // Send only the base64 data, not the full data URL
+        mimeType: mimeType, // Send the mime type separately
+        lifestyle: {
+          cycle_phase: "unknown", // Default since we don't have cycle tracking
+          sleep_hours: 7,
+          hydration_cups: 6,
+          stress_level: 3,
+          mood: 3,
+        },
       };
 
-      // Call the new API that uses frontend Gemini calls
-      const response = await generateRecommendationBundle(
-        imageBase64, // { base64, mimeType } object
-        lifestyle
+      const response = await fetch(
+        "http://localhost:8787/api/recommendation-bundle",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
       );
 
-      // Store the response
-      setApiData(response);
-      setAnalysisResult(response);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed. Please try again.");
+      }
+
+      const result = await response.json();
+
+      // Store the comprehensive response
+      setApiData(result); // This now contains recommended_products, price_comparisons, routine, etc.
+      setAnalysisResult(result.skin_profile?.skin_analysis); // Keep for legacy compatibility
       setHasGeneratedPlan(true);
 
       // Scroll to results
@@ -577,96 +733,83 @@ const MainApp = () => {
           data-id="capture"
           ref={(el) => (sectionRefs.current["capture"] = el)}
         >
-          <div className="section-inner hero-layout">
-            <div className="section-text hero-main">
-              <p className="floating-label floating-label-large">
-                Capture &amp; Profile
-              </p>
-              <h1 className="hero-title">
-                SkinSense <span className="hero-highlight">AI</span>
-              </h1>
-              <p className="hero-subtitle">
-                Add a clear photo and a few quick details. We’ll use this to
-                build your personalized skin care plan.
-              </p>
+          {/* Initial state: Only title and upload section */}
+          {!imageData && !isWebcamActive && (
+            <div className="capture-initial-layout">
+              <div className="capture-initial-content">
+                <h1 className="hero-title">
+                  SkinSense <span className="hero-highlight">AI</span>
+                </h1>
+                <p className="hero-subtitle">
+                  Add a clear photo and a few quick details. We'll use this to
+                  build your personalized skin care plan.
+                </p>
 
-              <div className="capture-block">
-                {/* This container will hold the image selection and preview */}
-                <div className="capture-flex-container">
-                  {/* Left side: Upload buttons or Image Preview */}
-                  <div className="capture-main-panel">
-                    {isWebcamActive ? (
-                      <WebcamCapture
-                        onCapture={handleWebcamCapture}
-                        onCancel={handleWebcamCancel}
-                      />
-                    ) : imageData ? (
-                      <div className="image-preview-box">
-                        {/* The image tag now has inline styles for dynamic sizing */}
-                        <img
-                          src={imageData}
-                          alt="Selected skin"
-                          className="preview-image"
-                          style={{
-                            maxWidth: "100%",
-                            maxHeight: "300px",
-                            height: "auto",
-                            width: "auto",
-                          }}
-                        />
-                        {!imageConfirmed && (
-                          <div className="preview-actions">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={handleRetake}
-                            >
-                              Retake
-                            </button>
-                            <button
-                              type="button"
-                              className="primary-btn"
-                              onClick={handleUseThis}
-                            >
-                              Use This!
-                            </button>
-                          </div>
-                        )}
-                        {imageConfirmed && (
-                          <div className="preview-confirmed-badge">
-                            ✔ Image Confirmed
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="capture-actions">
-                        <button
-                          type="button"
-                          className="primary-btn capture-btn"
-                          onClick={handleUploadClick}
-                        >
-                          📤 Upload a Photo
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn capture-btn"
-                          onClick={() => setIsWebcamActive(true)}
-                        >
-                          📸 Take a Live Picture
-                        </button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          onChange={handleFileChange}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>{" "}
-                {/* End of capture-flex-container */}
-                {/* User filters form */}
+                <div className="capture-actions">
+                  <button
+                    type="button"
+                    className="primary-btn capture-btn"
+                    onClick={handleUploadClick}
+                  >
+                    Upload a Photo
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn capture-btn"
+                    onClick={() => setIsWebcamActive(true)}
+                  >
+                    Take a Live Picture
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Webcam view in initial layout */}
+          {!imageData && isWebcamActive && (
+            <div className="capture-initial-layout">
+              <div className="capture-initial-content">
+                <h1 className="hero-title">
+                  SkinSense <span className="hero-highlight">AI</span>
+                </h1>
+                <p className="hero-subtitle">
+                  Position your face in the camera and capture your photo.
+                </p>
+                
+                <div className="webcam-capture-panel">
+                  <WebcamCapture
+                    onCapture={handleWebcamCapture}
+                    onCancel={handleWebcamCancel}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Side-by-side layout after image upload */}
+          {imageData && (
+            <div className="section-inner hero-layout">
+              {/* Left side: Title, user input, and controls */}
+              <div className="section-text hero-main">
+                <p className="floating-label floating-label-large">
+                  Capture &amp; Profile
+                </p>
+                <h1 className="hero-title">
+                  SkinSense <span className="hero-highlight">AI</span>
+                </h1>
+                <p className="hero-subtitle">
+                  Add a clear photo and a few quick details. We'll use this to
+                  build your personalized skin care plan.
+                </p>
+
+                {/* User input form */}
                 <div className="user-form">
                   <p className="form-caption">
                     Tell us a bit more so we can personalize your routine:
@@ -724,8 +867,7 @@ const MainApp = () => {
                     </div>
                   </div>
                 </div>
-                /*THIS IS WHERE MRIDA AND ATIKA'S CODE IS. IF ANYTHING NEEDS TO
-                BE FIXED DO THIS*/
+
                 {/* "Start Scan" button appears only after image is confirmed and form is filled */}
                 {imageConfirmed && (
                   <button
@@ -742,18 +884,6 @@ const MainApp = () => {
                       : "Please fill out your profile"}
                   </button>
                 )}
-                {/* Generate plan button */}
-                <button
-                  type="button"
-                  className={
-                    "generate-btn" +
-                    (canStartFlow ? " generate-btn-active" : "")
-                  }
-                  disabled={!canStartFlow}
-                  onClick={handleGeneratePlan}
-                >
-                  Generate My Personalized Skin Care Routine
-                </button>
                 {apiError && (
                   <div
                     style={{
@@ -775,142 +905,192 @@ const MainApp = () => {
                   </div>
                 )}
               </div>
+
+              {/* Right side: Image preview */}
+              <div className="section-visual">
+                <div className="viz-card">
+                  <h3 className="viz-title">Your Photo</h3>
+                  {isWebcamActive ? (
+                    <WebcamCapture
+                      onCapture={handleWebcamCapture}
+                      onCancel={handleWebcamCancel}
+                    />
+                  ) : (
+                    <div className="image-preview-box">
+                      <img
+                        src={imageData}
+                        alt="Selected skin"
+                        className="preview-image"
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "300px",
+                          height: "auto",
+                          width: "auto",
+                        }}
+                      />
+                      {!imageConfirmed && (
+                        <div className="preview-actions">
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={handleRetake}
+                          >
+                            Retake
+                          </button>
+                          <button
+                            type="button"
+                            className="primary-btn"
+                            onClick={handleUseThis}
+                          >
+                            Use This!
+                          </button>
+                        </div>
+                      )}
+                      {imageConfirmed && (
+                        <div className="preview-confirmed-badge">
+                          Image Confirmed
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* =======================
             GENERATED FLOW SECTIONS
             ======================= */}
         {hasGeneratedPlan &&
-          SECTIONS.map((section) => (
-            <section
-              key={section.id}
-              className={
-                "section feature" +
-                (activeSection === section.id ? " section-active" : "")
-              }
-              data-id={section.id}
-              ref={(el) => (sectionRefs.current[section.id] = el)}
-            >
-              <div className="section-inner">
-                {/* Left: text */}
-                <div className="section-text">
-                  <p className="floating-label">
-                    {section.label} · {section.tag}
-                  </p>
-                  <h2 className="section-title">{section.title}</h2>
+          SECTIONS.map((section, index) => (
+            <React.Fragment key={section.id}>
+              <section
+                className={
+                  "section feature" +
+                  (activeSection === section.id ? " section-active" : "")
+                }
+                data-id={section.id}
+                ref={(el) => (sectionRefs.current[section.id] = el)}
+              >
+                {/* Add dotted line connector except for first section */}
+                {index > 0 && <div className="step-connector" />}
+                
+                <div className="section-inner">
+                  {/* Left: text */}
+                  <div className="section-text">
+                    <p className="floating-label">
+                      {section.label} · {section.tag}
+                    </p>
+                    <h2 className="section-title">{section.title}</h2>
 
-                  {section.accent && (
-                    <div className="section-accent-pill">{section.accent}</div>
-                  )}
-                  <p className="section-blurb">{section.blurb}</p>
+                    {section.accent && (
+                      <div className="section-accent-pill">{section.accent}</div>
+                    )}
+                    <p className="section-blurb">{section.blurb}</p>
 
-                  <ul className="bullet-list">
-                    {section.bullets.map((item) => (
-                      <li key={item} className="bullet-item">
-                        <span className="bullet-dot" /> {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                    <ul className="bullet-list">
+                      {section.bullets.map((item) => (
+                        <li key={item} className="bullet-item">
+                          <span className="bullet-dot" /> {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                {/* Right: visuals per section */}
-                <div className="section-visual">
+                  {/* Right: visuals per section */}
+                  <div className="section-visual">
                   {section.id === "analysis" && (
                     <div className="viz-card">
                       <h3 className="viz-title">Skin Map</h3>
                       <div className="viz-bars">
                         <div className="viz-bar">
                           <span>Acne</span>
-                          <div
-                            className="viz-bar-fill"
-                            style={{
-                              width: apiData?.skin_profile?.skin_analysis?.acne
-                                ? `${
-                                    apiData.skin_profile.skin_analysis.acne ===
-                                    "none"
-                                      ? 0
-                                      : apiData.skin_profile.skin_analysis
-                                          .acne === "mild"
-                                      ? 25
-                                      : apiData.skin_profile.skin_analysis
-                                          .acne === "moderate"
-                                      ? 50
-                                      : 75
-                                  }%`
-                                : "0%",
-                            }}
-                          />
+                          <div className="viz-bar-container">
+                            <div
+                              className="viz-bar-fill"
+                              style={{ 
+                                width: `${calculatePercentage(
+                                  apiData?.skin_profile?.skin_analysis?.acne, 
+                                  userFilters.oily, 
+                                  'acne'
+                                )}%` || '0%' 
+                              }}
+                            />
+                            <span className="viz-bar-percentage">
+                              {calculatePercentage(
+                                apiData?.skin_profile?.skin_analysis?.acne, 
+                                userFilters.oily, 
+                                'acne'
+                              )}%
+                            </span>
+                          </div>
                         </div>
                         <div className="viz-bar">
                           <span>Redness</span>
-                          <div
-                            className="viz-bar-fill"
-                            style={{
-                              width: apiData?.skin_profile?.skin_analysis
-                                ?.redness
-                                ? `${
-                                    apiData.skin_profile.skin_analysis
-                                      .redness === "none"
-                                      ? 0
-                                      : apiData.skin_profile.skin_analysis
-                                          .redness === "mild"
-                                      ? 25
-                                      : apiData.skin_profile.skin_analysis
-                                          .redness === "moderate"
-                                      ? 50
-                                      : 75
-                                  }%`
-                                : "0%",
-                            }}
-                          />
+                          <div className="viz-bar-container">
+                            <div
+                              className="viz-bar-fill"
+                              style={{ 
+                                width: `${calculatePercentage(
+                                  apiData?.skin_profile?.skin_analysis?.redness, 
+                                  userFilters.intensity, 
+                                  'redness'
+                                )}%` || '0%' 
+                              }}
+                            />
+                            <span className="viz-bar-percentage">
+                              {calculatePercentage(
+                                apiData?.skin_profile?.skin_analysis?.redness, 
+                                userFilters.intensity, 
+                                'redness'
+                              )}%
+                            </span>
+                          </div>
                         </div>
                         <div className="viz-bar">
                           <span>Oiliness</span>
-                          <div
-                            className="viz-bar-fill"
-                            style={{
-                              width: apiData?.skin_profile?.skin_analysis
-                                ?.oiliness
-                                ? `${
-                                    apiData.skin_profile.skin_analysis
-                                      .oiliness === "none"
-                                      ? 0
-                                      : apiData.skin_profile.skin_analysis
-                                          .oiliness === "mild"
-                                      ? 25
-                                      : apiData.skin_profile.skin_analysis
-                                          .oiliness === "moderate"
-                                      ? 50
-                                      : 75
-                                  }%`
-                                : "0%",
-                            }}
-                          />
+                          <div className="viz-bar-container">
+                            <div
+                              className="viz-bar-fill"
+                              style={{ 
+                                width: `${calculatePercentage(
+                                  apiData?.skin_profile?.skin_analysis?.oiliness, 
+                                  userFilters.oily, 
+                                  'oiliness'
+                                )}%` || '0%' 
+                              }}
+                            />
+                            <span className="viz-bar-percentage">
+                              {calculatePercentage(
+                                apiData?.skin_profile?.skin_analysis?.oiliness, 
+                                userFilters.oily, 
+                                'oiliness'
+                              )}%
+                            </span>
+                          </div>
                         </div>
                         <div className="viz-bar">
                           <span>Dryness</span>
-                          <div
-                            className="viz-bar-fill"
-                            style={{
-                              width: apiData?.skin_profile?.skin_analysis
-                                ?.dryness
-                                ? `${
-                                    apiData.skin_profile.skin_analysis
-                                      .dryness === "none"
-                                      ? 0
-                                      : apiData.skin_profile.skin_analysis
-                                          .dryness === "mild"
-                                      ? 25
-                                      : apiData.skin_profile.skin_analysis
-                                          .dryness === "moderate"
-                                      ? 50
-                                      : 75
-                                  }%`
-                                : "0%",
-                            }}
-                          />
+                          <div className="viz-bar-container">
+                            <div
+                              className="viz-bar-fill"
+                              style={{ 
+                                width: `${calculatePercentage(
+                                  apiData?.skin_profile?.skin_analysis?.dryness, 
+                                  userFilters.dry, 
+                                  'dryness'
+                                )}%` || '0%' 
+                              }}
+                            />
+                            <span className="viz-bar-percentage">
+                              {calculatePercentage(
+                                apiData?.skin_profile?.skin_analysis?.dryness, 
+                                userFilters.dry, 
+                                'dryness'
+                              )}%
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -918,8 +1098,7 @@ const MainApp = () => {
 
                       <h3 className="viz-title">Skin Summary</h3>
                       <p className="viz-paragraph">
-                        {apiData?.skin_profile?.skin_analysis
-                          ?.non_medical_summary ||
+                        {apiData?.skin_profile?.skin_analysis?.non_medical_summary ||
                           "Your skin appears moderately oily with mild inflammation around the cheeks. Stress and low sleep might be contributing to congestion."}
                       </p>
                       <div className="viz-tags-row">
@@ -929,9 +1108,9 @@ const MainApp = () => {
                             <span key={idx}>{trigger}</span>
                           )) || (
                           <>
-                            <span>⚡ Stress</span>
-                            <span>💤 Sleep</span>
-                            <span>🩹 Barrier support</span>
+                            <span>Stress</span>
+                            <span>Sleep</span>
+                            <span>Barrier support</span>
                           </>
                         )}
                       </div>
@@ -1039,10 +1218,25 @@ const MainApp = () => {
                                         }}
                                       />
                                     ) : (
-                                      <div
-                                        className={`product-thumb product-thumb-${
-                                          (idx % 2) + 1
-                                        }`}
+                                      <img
+                                        src={getProductImageUrl(product.name, product.brand)}
+                                        alt={product.name}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
+                                        onError={(e) => {
+                                          // Fallback to branded placeholder if image fails
+                                          e.target.src = `data:image/svg+xml;base64,${btoa(`
+                                            <svg width="120" height="90" xmlns="http://www.w3.org/2000/svg">
+                                              <rect width="120" height="90" fill="#95A5A6"/>
+                                              <text x="60" y="45" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="bold">
+                                                ${product.brand || 'Product'}
+                                              </text>
+                                            </svg>
+                                          `)}`;
+                                        }}
                                       />
                                     )}
                                   </div>
@@ -1099,6 +1293,14 @@ const MainApp = () => {
                                         Best price: {cheapestPrice.store}
                                       </span>
                                     )}
+                                    <div className="product-actions">
+                                      <button 
+                                        className="product-link-btn"
+                                        onClick={() => window.open(product.url || `https://www.google.com/search?q=${encodeURIComponent(product.name + ' ' + product.brand + ' buy')}`, '_blank')}
+                                      >
+                                        View Product
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -1107,7 +1309,25 @@ const MainApp = () => {
                           <>
                             <div className="product-card">
                               <div className="product-image">
-                                <div className="product-thumb product-thumb-1" />
+                                <img
+                                  src={getProductImageUrl('CeraVe Foaming Facial Cleanser', 'CeraVe')}
+                                  alt="CeraVe Foaming Facial Cleanser"
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    e.target.src = `data:image/svg+xml;base64,${btoa(`
+                                      <svg width="120" height="90" xmlns="http://www.w3.org/2000/svg">
+                                        <rect width="120" height="90" fill="#4A90E2"/>
+                                        <text x="60" y="45" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="bold">
+                                          CeraVe
+                                        </text>
+                                      </svg>
+                                    `)}`;
+                                  }}
+                                />
                               </div>
                               <div className="product-meta">
                                 <p className="product-name">
@@ -1139,18 +1359,92 @@ const MainApp = () => {
                   {section.id === "stores" && (
                     <div className="viz-card">
                       <h3 className="viz-title">Nearby Availability</h3>
-                      <div className="map-placeholder">
-                        <div className="map-pin">📍</div>
-                        <p className="map-caption">
-                          Show closest stores with your cleanser, moisturizer,
-                          and sunscreen in stock.
-                        </p>
+                      <div className="store-locations">
+                        {apiData?.recommended_products?.slice(0, 3).map((product, idx) => {
+                          const priceData = apiData?.price_comparisons?.find(
+                            (pc) => pc.product_name === product.name
+                          );
+                          return (
+                            <div key={idx} className="store-location-item">
+                              <h4 className="store-product-name">{product.name}</h4>
+                              <div className="store-options">
+                                {priceData?.prices?.filter(p => p.price !== null).map((store, storeIdx) => (
+                                  <div key={storeIdx} className="store-option">
+                                    <div className="store-info">
+                                      <span className="store-name">{store.store}</span>
+                                      <span className="store-price">${store.price?.toFixed(2)}</span>
+                                    </div>
+                                    <div className="store-actions">
+                                      <a 
+                                        href={store.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="store-link"
+                                      >
+                                        Buy Online
+                                      </a>
+                                      <button 
+                                        className="store-directions-btn"
+                                        onClick={() => window.open(`https://www.google.com/maps/search/${encodeURIComponent(store.store + ' near me')}`, '_blank')}
+                                      >
+                                        Find Nearby
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }) || (
+                          <div className="default-stores">
+                            <div className="store-location-item">
+                              <h4 className="store-product-name">CeraVe Foaming Cleanser</h4>
+                              <div className="store-options">
+                                <div className="store-option">
+                                  <div className="store-info">
+                                    <span className="store-name">Walmart</span>
+                                    <span className="store-price">$13.97</span>
+                                  </div>
+                                  <div className="store-actions">
+                                    <a href="https://www.walmart.ca/en/cerave-foaming-facial-cleanser/NOC00581578" target="_blank" rel="noopener noreferrer" className="store-link">
+                                      Buy Online
+                                    </a>
+                                    <button 
+                                      className="store-directions-btn"
+                                      onClick={() => window.open('https://www.google.com/maps/search/Walmart near me', '_blank')}
+                                    >
+                                      Find Nearby
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="store-option">
+                                  <div className="store-info">
+                                    <span className="store-name">Shoppers Drug Mart</span>
+                                    <span className="store-price">$18.99</span>
+                                  </div>
+                                  <div className="store-actions">
+                                    <a href="https://www1.shoppersdrugmart.ca/en/cerave-foaming-facial-cleanser/p/300016999" target="_blank" rel="noopener noreferrer" className="store-link">
+                                      Buy Online
+                                    </a>
+                                    <button 
+                                      className="store-directions-btn"
+                                      onClick={() => window.open('https://www.google.com/maps/search/Shoppers Drug Mart near me', '_blank')}
+                                    >
+                                      Find Nearby
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               </div>
             </section>
+            </React.Fragment>
           ))}
       </main>
     </div>
